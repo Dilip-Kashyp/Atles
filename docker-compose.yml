@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - MCP_SERVER_SCRIPT=../mcp-servers/slack/server.py
+    volumes:
+      - ./backend:/app
+      - ./mcp-servers:/mcp-servers
+    depends_on:
+      - slack-mcp
+
+  slack-mcp:
+    build:
+      context: ./mcp-servers/slack
+    # This represents how it might be deployed independently in the future.
+    # Currently it is launched as a subprocess by the backend via stdio.
+    # For a remote setup, it would run here and expose an SSE endpoint.
+
+  github-mcp:
+    build:
+      context: ./mcp-servers/github
+    # Stub for future GitHub integration
+
+  notion-mcp:
+    build:
+      context: ./mcp-servers/notion
+    # Stub for future Notion integration
