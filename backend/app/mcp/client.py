@@ -65,14 +65,14 @@ class MCPClient:
         if self._session_context:
             try:
                 await self._session_context.__aexit__(None, None, None)
-            except Exception as exc:
-                log.warning("[CHECKPOINT: MCP_CLOSE_WARN] Error closing session: %s", exc)
+            except BaseException:
+                pass
 
         if self._stdio_context:
             try:
                 await self._stdio_context.__aexit__(None, None, None)
-            except Exception as exc:
-                log.warning("[CHECKPOINT: MCP_CLOSE_WARN] Error closing transport: %s", exc)
+            except BaseException:
+                pass
 
         log.info("[CHECKPOINT: MCP_CLOSED] Session closed")
 
