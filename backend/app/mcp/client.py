@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -9,6 +10,8 @@ from mcp.client.stdio import stdio_client
 from mcp.types import Tool
 
 log = logging.getLogger(__name__)
+
+MCP_INIT_TIMEOUT = 30
 
 
 class MCPClient:
@@ -47,7 +50,14 @@ class MCPClient:
 
         self._session_context = ClientSession(read, write)
         self.session = await self._session_context.__aenter__()
-        await self.session.initialize()
+
+        try:
+            await asyncio.wait_for(self.session.initialize(), timeout=MCP_INIT_TIMEOUT)
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f"MCP server '{server_path.name}' did not respond within {MCP_INIT_TIMEOUT}s. "
+                "Check that the server script starts correctly."
+            )
 
         log.info("[CHECKPOINT: MCP_SESSION_INIT] %s ready", server_path.name)
 

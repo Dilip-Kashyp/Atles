@@ -53,24 +53,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.slack_mcp = slack_mcp
 
     if settings.github_token:
-        github_mcp = MCPClient(
-            server_script=settings.github_mcp_server_script,
-            extra_env={"GITHUB_TOKEN": settings.github_token},
-        )
-        await github_mcp.__aenter__()
-        await dispatcher.register_mcp_client_tools(github_mcp)
-        app.state.github_mcp = github_mcp
+        try:
+            github_mcp = MCPClient(
+                server_script=settings.github_mcp_server_script,
+                extra_env={"GITHUB_TOKEN": settings.github_token},
+            )
+            await github_mcp.__aenter__()
+            await dispatcher.register_mcp_client_tools(github_mcp)
+            app.state.github_mcp = github_mcp
+        except Exception as exc:
+            log.error("[CHECKPOINT: MCP_SKIP] GitHub MCP failed to start: %s", exc)
+            app.state.github_mcp = None
     else:
         app.state.github_mcp = None
 
     if settings.notion_token:
-        notion_mcp = MCPClient(
-            server_script=settings.notion_mcp_server_script,
-            extra_env={"NOTION_TOKEN": settings.notion_token},
-        )
-        await notion_mcp.__aenter__()
-        await dispatcher.register_mcp_client_tools(notion_mcp)
-        app.state.notion_mcp = notion_mcp
+        try:
+            notion_mcp = MCPClient(
+                server_script=settings.notion_mcp_server_script,
+                extra_env={"NOTION_TOKEN": settings.notion_token},
+            )
+            await notion_mcp.__aenter__()
+            await dispatcher.register_mcp_client_tools(notion_mcp)
+            app.state.notion_mcp = notion_mcp
+        except Exception as exc:
+            log.error("[CHECKPOINT: MCP_SKIP] Notion MCP failed to start: %s", exc)
+            app.state.notion_mcp = None
     else:
         app.state.notion_mcp = None
 
