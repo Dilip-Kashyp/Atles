@@ -25,3 +25,8 @@ def get_llm_client(request: Request) -> LLMClient:
 
 def get_orchestrator(request: Request) -> Orchestrator:
     return request.app.state.orchestrator
+
+
+def get_memory_manager(request: Request):  # type: ignore[return]
+    """Returns the MemoryManager if configured, or None if memory is disabled."""
+    return getattr(request.app.state, "memory_manager", None)

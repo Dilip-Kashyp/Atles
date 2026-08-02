@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     github_token: str = ""
     notion_token: str = ""
 
+    # ── Memory System ──────────────────────────────────────────────────────────
+    mongodb_uri: str = ""
+    mongodb_db_name: str = "ai_teammate"
+    memory_enabled: bool = True          # Set to false to fully bypass memory
+    memory_cache_max_size: int = 256     # Max sessions resident in the LRU cache
+    memory_cache_ttl_seconds: int = 3600 # 1 hour session TTL in cache
+
     model_config = SettingsConfigDict(
         env_file=["../.env", ".env"],
         env_file_encoding="utf-8",
@@ -25,3 +32,4 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+

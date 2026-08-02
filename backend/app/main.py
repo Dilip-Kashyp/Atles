@@ -91,18 +91,78 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     app.state.llm_client = llm
 
-    orchestrator = Orchestrator(llm_client=llm, tool_dispatcher=dispatcher)
+    # ── Memory System (optional — feature-flagged) ─────────────────────────────
+    memory_manager = None
+    if settings.mongodb_uri and settings.memory_enabled:
+        try:
+            from app.memory.cache import RuntimeCache
+            from app.memory.extractor import EntityExtractor
+            from app.memory.manager import MemoryManager
+            from app.memory.prompt_context import PromptContextBuilder
+            from app.memory.repository import MemoryRepository
+
+            repo = MemoryRepository(
+                mongo_uri=settings.mongodb_uri,
+                db_name=settings.mongodb_db_name,
+            )
+            await repo.ensure_indexes()
+
+            cache = RuntimeCache(
+                max_size=settings.memory_cache_max_size,
+                ttl_seconds=settings.memory_cache_ttl_seconds,
+            )
+            extractor = EntityExtractor(gemini_api_key=settings.gemini_api_key)
+            builder   = PromptContextBuilder()
+
+            # Inject the Slack MCP read_messages callable as the cold-storage fallback
+            async def _slack_read(channel: str, thread_ts: str) -> str:
+                return await slack_mcp.call_tool(
+                    "read_messages", {"channel": channel, "thread_ts": thread_ts}
+                )
+
+            memory_manager = MemoryManager(
+                repository=repo,
+                cache=cache,
+                extractor=extractor,
+                context_builder=builder,
+                slack_read_fn=_slack_read,
+            )
+            app.state.memory_repo = repo
+            log.info("[CHECKPOINT: MEMORY_READY] Memory system initialized (MongoDB)")
+        except Exception as exc:
+            log.error("[CHECKPOINT: MEMORY_SKIP] Memory system failed to initialize: %s", exc)
+            memory_manager = None
+    else:
+        log.warning(
+            "[CHECKPOINT: MEMORY_DISABLED] MONGODB_URI not set or MEMORY_ENABLED=false. "
+            "Running in stateless mode."
+        )
+
+    app.state.memory_manager = memory_manager
+
+    orchestrator = Orchestrator(
+        llm_client=llm,
+        tool_dispatcher=dispatcher,
+        memory_manager=memory_manager,
+    )
     app.state.orchestrator = orchestrator
 
     log.info("[CHECKPOINT: APP_READY] All services & MCP servers registered")
     yield
 
+    # ── Shutdown ───────────────────────────────────────────────────────────────
     for mcp_attr in ("slack_mcp", "github_mcp", "notion_mcp"):
         mcp_instance = getattr(app.state, mcp_attr, None)
         if mcp_instance is not None:
             await mcp_instance.__aexit__(None, None, None)
 
+    if memory_manager is not None:
+        repo_instance = getattr(app.state, "memory_repo", None)
+        if repo_instance is not None:
+            await repo_instance.disconnect()
+
     log.info("[CHECKPOINT: APP_SHUTDOWN] Cleanup finished")
+
 
 
 app = FastAPI(
