@@ -10,7 +10,7 @@ class NormalizedEvent(BaseModel):
     sender: str
     raw_text: str
     event_id: str
-    workspace_id: str = ""  # Slack team_id; empty for non-Slack platforms
+    workspace_id: str = ""
 
 
 class ChatPlatform(abc.ABC):

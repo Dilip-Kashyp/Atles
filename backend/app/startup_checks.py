@@ -11,8 +11,6 @@ async def run_preflight_checks(settings: Settings) -> None:
 
     await _check_gemini(settings, errors)
     await _check_slack(settings, errors)
-    await _check_github(settings, errors)
-    await _check_notion(settings, errors)
 
     if errors:
         log.critical("[PREFLIGHT FAILED] The following checks did not pass:")
@@ -37,37 +35,8 @@ async def _check_gemini(settings: Settings, errors: list[str]) -> None:
 async def _check_slack(settings: Settings, errors: list[str]) -> None:
     try:
         from slack_sdk import WebClient
-        from slack_sdk.errors import SlackApiError
         resp = WebClient(token=settings.slack_bot_token).auth_test()
         log.info("[PREFLIGHT] Slack token — OK (bot: %s)", resp.get("user"))
     except Exception as exc:
         errors.append(f"Slack: {exc}")
         log.error("[PREFLIGHT] Slack token — FAILED: %s", exc)
-
-
-async def _check_github(settings: Settings, errors: list[str]) -> None:
-    if not settings.github_token:
-        log.info("[PREFLIGHT] GitHub token — SKIPPED (not configured)")
-        return
-
-    try:
-        from github import Github
-        user = Github(settings.github_token).get_user()
-        log.info("[PREFLIGHT] GitHub token — OK (user: %s)", user.login)
-    except Exception as exc:
-        errors.append(f"GitHub: {exc}")
-        log.error("[PREFLIGHT] GitHub token — FAILED: %s", exc)
-
-
-async def _check_notion(settings: Settings, errors: list[str]) -> None:
-    if not settings.notion_token:
-        log.info("[PREFLIGHT] Notion token — SKIPPED (not configured)")
-        return
-
-    try:
-        from notion_client import Client
-        Client(auth=settings.notion_token).users.me()
-        log.info("[PREFLIGHT] Notion token — OK")
-    except Exception as exc:
-        errors.append(f"Notion: {exc}")
-        log.error("[PREFLIGHT] Notion token — FAILED: %s", exc)

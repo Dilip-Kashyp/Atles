@@ -67,7 +67,7 @@ class SlackPlatform(ChatPlatform):
                 sender=event.get("user", ""),
                 raw_text=self._strip_mention(event.get("text", "")),
                 event_id=event_ts,
-                workspace_id=payload.get("team_id", ""),  # Slack workspace ID
+                workspace_id=payload.get("team_id", ""),
             )
 
             log.info("[CHECKPOINT: SLACK_DISPATCH] Spawning background task for mention")

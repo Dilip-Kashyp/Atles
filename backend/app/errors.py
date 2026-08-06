@@ -9,9 +9,6 @@ log = logging.getLogger(__name__)
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ClientDisconnect)
     async def client_disconnect_handler(request: Request, exc: ClientDisconnect) -> Response:
-        # Slack (and other platforms) routinely disconnect immediately after
-        # sending a webhook — before we finish reading the body. This is normal
-        # network behaviour, not a server error. Log at DEBUG to avoid noise.
         log.debug(
             "[CHECKPOINT: CLIENT_DISCONNECT] Client disconnected early on %s %s",
             request.method,
@@ -38,4 +35,3 @@ def register_error_handlers(app: FastAPI) -> None:
     async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         log.exception("[CHECKPOINT: ERROR 500] Generic server error: %s", exc)
         return JSONResponse(status_code=500, content={"detail": "Internal server error."})
-

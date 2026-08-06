@@ -1,35 +1,46 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: atlas_db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=atlas
+      - POSTGRES_PASSWORD=atlas_secure_pass
+      - POSTGRES_DB=atlas_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: atlas_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   backend:
     build:
       context: ./backend
+    container_name: atlas_backend
     ports:
       - "8000:8000"
     environment:
+      - DATABASE_URL=postgresql+asyncpg://atlas:atlas_secure_pass@db:5432/atlas_dev
+      - DATABASE_SYNC_URL=postgresql://atlas:atlas_secure_pass@db:5432/atlas_dev
+      - REDIS_URL=redis://redis:6379/0
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
-      - MCP_SERVER_SCRIPT=../mcp-servers/slack/server.py
+      - ATLAS_MASTER_KEY=${ATLAS_MASTER_KEY}
     volumes:
       - ./backend:/app
-      - ./mcp-servers:/mcp-servers
     depends_on:
-      - slack-mcp
+      - db
+      - redis
 
-  slack-mcp:
-    build:
-      context: ./mcp-servers/slack
-    # This represents how it might be deployed independently in the future.
-    # Currently it is launched as a subprocess by the backend via stdio.
-    # For a remote setup, it would run here and expose an SSE endpoint.
-
-  github-mcp:
-    build:
-      context: ./mcp-servers/github
-    # Stub for future GitHub integration
-
-  notion-mcp:
-    build:
-      context: ./mcp-servers/notion
-    # Stub for future Notion integration
+volumes:
+  postgres_data:
+  redis_data:

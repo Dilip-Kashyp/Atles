@@ -36,7 +36,6 @@ async def chat(
 ) -> ChatResponse:
     log.info("[CHECKPOINT: CHAT_INGRESS] Received POST /chat request")
 
-    # ── Build SessionContext if memory is available ────────────────────────────
     session_context = None
     memory_manager = getattr(request.app.state, "memory_manager", None)
     resolved_session_key: str | None = None

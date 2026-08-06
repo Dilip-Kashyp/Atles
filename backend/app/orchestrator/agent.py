@@ -38,7 +38,6 @@ class Orchestrator:
     ) -> OrchestratorResult:
         log.info("[CHECKPOINT 1/4: ORCHESTRATOR_START] Query: %r", user_message[:80])
 
-        # ── Memory: load context and build enriched prompt ─────────────────────
         enriched_message = user_message
         if self._memory is not None and session_context is not None:
             from app.memory.prompt_context import PromptContextBuilder
@@ -50,8 +49,6 @@ class Orchestrator:
                 enriched_message = prefix + user_message
                 log.info("[CHECKPOINT: MEMORY_CONTEXT_INJECTED] Prefix=%d chars", len(prefix))
 
-
-        # ── LLM: first call ────────────────────────────────────────────────────
         log.info("[CHECKPOINT 2/4: LLM_QUERY] Sending prompt to LLM")
         first_response = self._llm.send_message(enriched_message)
         function_call  = self._llm.extract_function_call(first_response)
@@ -66,7 +63,6 @@ class Orchestrator:
                 log.exception("[CHECKPOINT: TOOL_ERROR] Execution failed for '%s'", tool_name)
                 tool_result = f"Error executing tool {tool_name}: {e}"
             else:
-                # ── Memory: update working state after successful tool call ────
                 if self._memory is not None and session_context is not None:
                     await self._memory.on_tool_success(
                         session_key=session_context.session_key,
@@ -86,7 +82,6 @@ class Orchestrator:
             if not final_text:
                 final_text = "Retrieved tool data, but generated no text. Raw result:\n\n" + tool_result
 
-            # ── Memory: persist the completed turn ────────────────────────────
             if self._memory is not None and session_context is not None:
                 await self._memory.persist_turn(
                     session_key=session_context.session_key,
@@ -107,7 +102,6 @@ class Orchestrator:
             if not direct_text:
                 direct_text = "Unable to generate a response. Please try rephrasing."
 
-            # ── Memory: persist the completed turn ────────────────────────────
             if self._memory is not None and session_context is not None:
                 await self._memory.persist_turn(
                     session_key=session_context.session_key,

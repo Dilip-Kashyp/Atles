@@ -44,11 +44,6 @@ class GeminiClient(LLMClient):
 
     def send_message(self, user_message: str) -> types.GenerateContentResponse:
         log.info("[CHECKPOINT: LLM_SEND_MESSAGE] Prompting Gemini (%d chars)", len(user_message))
-        # SDK-level tool enforcement (Fix 3):
-        #   mode="AUTO" → Gemini evaluates all function declarations on every
-        #   call and calls one when it applies.  Combined with the strict
-        #   RULE-01/PROHIBITED-01 prompt rules this creates a two-layer
-        #   guarantee against the LLM ignoring tools.
         tool_config = (
             types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode="AUTO")
@@ -94,7 +89,6 @@ class GeminiClient(LLMClient):
             ),
         ]
 
-        # Same tool_config as send_message — enforce AUTO mode on follow-up calls too
         tool_config = (
             types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode="AUTO")

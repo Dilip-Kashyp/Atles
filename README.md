@@ -1,145 +1,279 @@
-# AI Teammate — Production Agentic Workflow Platform (Slack + FastAPI + Gemini + MCP)
+# Atlas — Conversation Intelligence Platform
 
-A **production-grade, decoupled AI Teammate platform** designed with strict separation of concerns, clean architecture, dependency injection, and Model Context Protocol (MCP) integrations.
-
----
-
-## Architecture Overview & Design Patterns
-
-The system separates concerns across 4 key decoupled layers:
-
-1. **Ingress & Platform Layer (`app/orchestrator/platform_base.py`, `app/orchestrator/slack_handler.py`)**:
-   - Implements the `ChatPlatform` protocol.
-   - Handles signature verification (HMAC-SHA256), event deduplication, URL verification handshakes, and event normalization into `NormalizedEvent`.
-   - Extensible for future chat platforms (e.g. Microsoft Teams) without modifying core business logic.
-
-2. **Orchestration Layer (`app/orchestrator/agent.py`)**:
-   - `Orchestrator` class executing a 4-stage processing lifecycle.
-   - Controls reasoning flow between the LLM client and the Tool Dispatcher.
-   - Emits structured `[CHECKPOINT]` log telemetry at each stage.
-
-3. **Tool Dispatcher & MCP Subprocess Layer (`app/orchestrator/tool_dispatcher.py`, `app/mcp/client.py`)**:
-   - Manages multiple concurrent MCP server subprocesses (Slack, GitHub, Notion) via stdio transport.
-   - Maps tool declarations dynamically into unified `MCPToolProxy` objects.
-   - Implements strict tool boundaries.
-
-4. **LLM Provider Layer (`app/llm/base.py`, `app/llm/gemini.py`)**:
-   - Implements `LLMClient` protocol for provider neutrality (Gemini, Claude, etc.).
-   - Converts MCP tools into native function declarations and handles tool response loops.
+Atlas is a modular AI platform for turning conversations into structured work. The current implementation is a working MVP that combines a FastAPI backend, a Next.js dashboard, Slack ingress, OAuth login, and a lightweight AI planning layer for turning requests into actions.
 
 ---
 
-## Directory Structure
+## What the system does today
 
-```
-SlackBot/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── chat.py           # REST Endpoint (POST /chat/)
-│   │   │   └── slack.py          # Slack Webhook Endpoint (POST /slack/events)
-│   │   ├── llm/
-│   │   │   ├── base.py           # LLMClient Protocol
-│   │   │   ├── gemini.py         # Google Gemini Implementation
-│   │   │   └── prompts.py        # System Prompt & Parameter Rulebook
-│   │   ├── mcp/
-│   │   │   └── client.py         # Generic Stdio MCP Client Manager
-│   │   ├── orchestrator/
-│   │   │   ├── agent.py          # Core Orchestrator Class
-│   │   │   ├── platform_base.py  # ChatPlatform Protocol & NormalizedEvent
-│   │   │   ├── slack_handler.py  # SlackPlatform Implementation
-│   │   │   └── tool_dispatcher.py# Tool Registry & Dispatcher
-│   │   ├── tools/
-│   │   │   ├── base.py           # BaseTool Protocol
-│   │   │   ├── github.py         # GitHub Tool Scaffolding
-│   │   │   ├── notion.py         # Notion Tool Scaffolding
-│   │   │   └── slack.py          # MCPToolProxy Wrapper
-│   │   ├── config.py             # Pydantic Settings (.env loader)
-│   │   ├── dependencies.py       # FastAPI Depends() Providers
-│   │   ├── errors.py             # Centralized Global Exception Handlers
-│   │   └── main.py               # FastAPI App Lifespan & Initialization
-│   ├── Dockerfile                # Backend Docker build script
-│   ├── requirements.txt          # Python dependencies
-│   └── vercel.json               # Serverless config
-├── mcp-servers/
-│   ├── slack/
-│   │   ├── server.py             # FastMCP Slack Server (read_messages)
-│   │   └── Dockerfile
-│   ├── github/
-│   │   ├── server.py             # FastMCP GitHub Server (open_issue)
-│   │   ├── tools.py              # PyGithub Integration
-│   │   └── Dockerfile
-│   ├── notion/
-│   │   ├── server.py             # FastMCP Notion Server (find_document)
-│   │   ├── tools.py              # notion-client Integration
-│   │   └── Dockerfile
-│   └── jira/
-│       └── tools.py              # Jira integration stub
-├── docs/
-│   ├── architecture.md           # Deep dive architecture docs
-│   ├── deployment.md           # Docker & Serverless deployment guide
-│   └── mcp.md                  # MCP integration guide
-├── tests/                        # Unit test suite
-├── .env.example                  # Environment template
-├── docker-compose.yml            # Multi-container orchestration
-└── README.md
+Atlas currently supports:
+- a web dashboard for connecting integrations
+- OAuth sign-in with GitHub, Google, and Slack
+- Slack event ingestion and webhook handling
+- a backend orchestrator that can process chat and tool-driven requests
+- a simple AI pipeline that extracts intent and prepares action plans
+- provider-style execution scaffolding for GitHub issue creation
+
+The platform is intentionally built as a modular monolith so it can grow from MVP to a larger multi-tenant product without a full rewrite.
+
+---
+
+## Current architecture
+
+### High-level flow
+
+```text
+User / Slack / Web dashboard
+        │
+        ▼
+   API Layer (FastAPI)
+        │
+        ▼
+Conversation + Auth + Integration Services
+        │
+        ▼
+   AI Planning / Workflow Layer
+        │
+        ▼
+   Provider / Tool Execution Layer
+        │
+        ▼
+GitHub / Slack / future Jira / Notion / Google
 ```
 
+### Core modules
+
+- Backend API routes:
+  - auth for OAuth and JWT-style session handoff
+  - chat for direct conversational requests
+  - slack for event ingestion
+  - integrations for provider connection flows
+  - dashboard for workspace and integration views
+
+- Backend orchestration:
+  - orchestrator/agent.py handles the turn lifecycle
+  - workflow/ contains lightweight planning and state execution primitives
+  - ai/ contains the current conversation-planning pipeline
+
+- Frontend:
+  - Next.js app with a dashboard-style integration center
+  - login experience with multiple provider buttons
+
+- Data and auth:
+  - SQLAlchemy models for users, workspaces, memberships, and integrations
+  - encrypted credential handling for connected providers
+  - Redis-backed state handling for OAuth and short-lived flow data
+
 ---
 
-## Execution Flow & Checkpoints
+## Working implementation status
 
-When a request is received (via Slack @mention or `POST /chat/`), it follows a strict checkpointed lifecycle:
+### Working now
+- FastAPI app boots and serves API routes
+- Slack webhook and chat endpoints are wired
+- OAuth login flow is available for GitHub, Google, and Slack
+- Frontend login and dashboard shell render correctly
+- AI pipeline can plan a structured action for requests such as issue creation
+- Backend tests are passing
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Ingress as API Router (chat/slack)
-    participant Platform as SlackPlatform
-    participant Orchestrator as Orchestrator
-    participant LLM as GeminiClient
-    participant Dispatcher as ToolDispatcher
-    participant MCP as MCP Server Subprocess
+### In progress / next milestones
+- full provider execution for Jira and Notion
+- richer AI reasoning and conversation extraction
+- persistent multi-workspace organization model refinement
+- real workflow execution tied to provider results
+- expanded dashboard analytics and activity views
 
-    User->>Ingress: POST /slack/events or /chat/
-    Ingress->>Platform: [CHECKPOINT: SLACK_INGRESS] Verify Signature & Parse
-    Platform-->>Ingress: [CHECKPOINT: SLACK_AUTH_PASS] Verified
-    Ingress->>Orchestrator: [CHECKPOINT 1/4: ORCHESTRATOR_START] Process query
-    Orchestrator->>LLM: [CHECKPOINT 2/4: LLM_QUERY] Prompt model with tools
-    LLM-->>Orchestrator: Request tool execution (e.g. open_issue)
-    Orchestrator->>Dispatcher: [CHECKPOINT 3/4: TOOL_DISPATCH] Execute tool
-    Dispatcher->>MCP: Forward via stdio RPC
-    MCP-->>Dispatcher: Return result string/JSON
-    Dispatcher-->>Orchestrator: Return result
-    Orchestrator->>LLM: [CHECKPOINT: LLM_FEED_TOOL_RESULT] Feed tool output back
-    LLM-->>Orchestrator: Generate final natural language answer
-    Orchestrator-->>Ingress: [CHECKPOINT 4/4: ORCHESTRATOR_COMPLETE]
-    Ingress->>Platform: [CHECKPOINT: SLACK_EGRESS] Reply to thread
+---
+
+## Backend structure
+
+```text
+backend/app/
+  api/
+    auth.py
+    chat.py
+    dashboard.py
+    integrations.py
+    slack.py
+    webhooks.py
+  auth/
+    jwt.py
+    oauth_registry.py
+  ai/
+    graph.py
+    planner.py
+    extractor.py
+    summarizer.py
+    formatter.py
+    prompts.py
+    state.py
+  orchestrator/
+    agent.py
+    platform_base.py
+    slack_handler.py
+    tool_dispatcher.py
+    provider.py
+    workflow_bridge.py
+  workflow/
+    engine.py
+    planner.py
+    states.py
+    tool_registry.py
+  credentials/
+    manager.py
+  models/
+    tenancy.py
+    integrations.py
+  database/
+    session.py
+  utils/
+    redis.py
 ```
 
 ---
 
-## Quickstart
+## Frontend structure
+
+```text
+frontend/src/app/
+  layout.tsx
+  page.tsx
+  globals.css
+```
+
+The frontend currently provides the main onboarding and integration experience, while the backend supplies the real API and auth behavior.
+
+---
+
+## Authentication and OAuth flow
+
+The current auth flow is:
+
+1. User selects GitHub, Google, or Slack on the landing screen.
+2. Frontend redirects to the backend OAuth route.
+3. Backend stores a temporary state value and redirects the user to the OAuth provider.
+4. Provider returns an authorization code.
+5. Backend exchanges the code, creates or updates the user record, and issues a frontend redirect containing the access token.
+6. Frontend stores the token and enters the authenticated dashboard experience.
+
+This flow is implemented through the shared OAuth registry in the backend auth layer.
+
+---
+
+## Current development workflow
+
+### Run the backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+```
+
+### Run the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Run tests
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+### Run with Docker
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## Environment notes
+
+The application expects the following environment values to be configured:
+
+```env
+GEMINI_API_KEY=...
+SLACK_BOT_TOKEN=...
+SLACK_SIGNING_SECRET=...
+
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+If OAuth credentials are not configured, the app still runs in a local/demo-style mode for frontend exploration and backend testing.
+
+---
+
+## Product direction
+
+The current product direction is a practical MVP for Atlas:
+- keep the architecture modular
+- prioritize reliable integrations over premature complexity
+- make the AI pipeline useful for planning and actioning conversations
+- expand providers and analytics incrementally
+
+The next major step is to connect the AI planning layer to real provider execution end to end so a user request can flow from conversation to actual GitHub, Jira, or Notion work automatically.
 
 ### 1. Environment Setup
-Copy `.env.example` to `.env` in the project root:
 ```bash
 cp .env.example .env
 ```
-Fill out the required secrets:
+Fill in the required secrets:
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 SLACK_BOT_TOKEN=xoxb-your-token
 SLACK_SIGNING_SECRET=your_signing_secret
 
-# Optional Integrations
+# Optional integrations
 GITHUB_TOKEN=ghp_your_github_token
 NOTION_TOKEN=secret_your_notion_token
+
+# Memory (optional — bot works stateless without it)
+MONGODB_URI=mongodb+srv://...
 ```
 
 ### 2. Run Backend
 ```bash
 cd backend
-.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+python -m venv .venv && .venv\Scripts\activate   # Windows
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
-The server will automatically discover and launch all configured MCP servers (`slack`, `github`, `notion`) on startup.
+
+### 3. Run Tests
+```bash
+cd backend
+python -m pytest ../tests/ -v
+# 124 tests · 0 failures
+```
+
+### 4. Expose to Slack (Development)
+Use [`ngrok`](https://ngrok.com) or similar to expose `localhost:8000`:
+```bash
+python ng.py
+```
+Or run directly:
+```bash
+ngrok http 8000
+```
+Set your Slack App's Event Subscriptions URL to:
+```
+https://<your-ngrok-url>/slack/events
+```
+
+### 5. Docker (Production)
+```bash
+docker-compose up -d --build
+```
+Then point a reverse proxy (Nginx / Caddy / Cloudflare Tunnel) at port `8000`.

@@ -4,22 +4,33 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     gemini_api_key: str
-    gemini_model: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     slack_bot_token: str
     slack_signing_secret: str = ""
     slack_bot_user_id: str = ""
-    mcp_server_script: str = "../mcp-servers/slack/server.py"
-    github_mcp_server_script: str = "../mcp-servers/github/server.py"
-    notion_mcp_server_script: str = "../mcp-servers/notion/server.py"
-    github_token: str = ""
-    notion_token: str = ""
+    
+    # Database and Caching
+    database_url: str = "postgresql+asyncpg://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
+    database_sync_url: str = "postgresql://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
+    redis_url: str = "redis://localhost:6379/0"
+    
+    # Security encryption key (32-byte url-safe base64 key)
+    atlas_master_key: str = "super_secret_master_key_change_me_32_bytes!"
+    
+    # OAuth Configurations
+    github_client_id: str = ""
+    github_client_secret: str = ""
 
-    # ── Memory System ──────────────────────────────────────────────────────────
-    mongodb_uri: str = ""
-    mongodb_db_name: str = "ai_teammate"
-    memory_enabled: bool = True          # Set to false to fully bypass memory
-    memory_cache_max_size: int = 256     # Max sessions resident in the LRU cache
-    memory_cache_ttl_seconds: int = 3600 # 1 hour session TTL in cache
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
+
+    slack_client_id: str = ""
+    slack_client_secret: str = ""
+    slack_redirect_uri: str = "http://localhost:8000/api/auth/slack/callback"
+
+    frontend_origin: str = "http://localhost:3000"
+    frontend_redirect_path: str = "/"
 
     model_config = SettingsConfigDict(
         env_file=["../.env", ".env"],
@@ -32,4 +43,3 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-
