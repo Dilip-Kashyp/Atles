@@ -1,18 +1,45 @@
-# Model Context Protocol (MCP)
+# Integrations & Model Context Protocol (MCP)
 
-This project heavily leverages the **Model Context Protocol** to decouple AI tool logic from the core orchestrator.
+Atlas leverages decoupled provider implementations and tool dispatching to execute actions against external services like Slack, GitHub, Jira, and Notion.
 
-## How it works
+---
 
-Instead of hardcoding Slack API calls into the FastAPI backend, the backend simply asks the local "Slack MCP Server" (running in `mcp-servers/slack/server.py`) what tools it has.
+## 1. Multi-Tenant Integrations Architecture
 
-The MCP Server responds with tools like `read_messages` and its JSON Schema. The FastAPI backend blindly forwards this schema to Gemini.
+Integrations are stored per workspace in the PostgreSQL database:
+- **`Integration`**: Stores connection status, provider type (`slack`, `github`, `notion`), provider variant, and external team/workspace IDs (`provider_workspace_id`).
+- **`Credential`**: Stores Fernet-encrypted access and refresh tokens.
 
-When Gemini wants to call `read_messages`, the FastAPI backend blindly forwards the call to the Slack MCP Server, which executes the real Python code to query Slack, and returns the result.
+When an action or event arrives:
+1. The backend looks up the active `Integration` for the workspace.
+2. `CredentialManager` decrypts the access token symmetrically.
+3. The provider/tool receives the token dynamically to execute the requested operation.
 
-## Adding new servers
+---
 
-To add a GitHub integration:
-1. Create `mcp-servers/github/server.py` and define tools for fetching PRs or Issues.
-2. Ensure the orchestrator is configured to connect to it (via stdio or SSE).
-3. The LLM instantly gains the ability to interact with GitHub without touching the core `agent.py` logic.
+## 2. Adding New Integration Tools
+
+To add a new tool (e.g. Jira Issue Search):
+
+1. Define a tool class inheriting from `BaseTool` in `backend/app/tools/`:
+   ```python
+   from app.tools.base import BaseTool
+
+   class JiraSearchTool(BaseTool):
+       name = "jira_search"
+       description = "Search Jira issues by query."
+       input_schema = {
+           "type": "object",
+           "properties": {
+               "query": {"type": "string"}
+           },
+           "required": ["query"]
+       }
+
+       async def execute(self, arguments: dict) -> str:
+           # Tool logic here
+           return "Results..."
+   ```
+
+2. Register the tool with `ToolDispatcher` in `backend/app/main.py`.
+3. The Gemini Orchestrator automatically receives the tool schema and can invoke it via function calling!

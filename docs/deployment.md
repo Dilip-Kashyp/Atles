@@ -1,15 +1,48 @@
-# Deployment Guide
+# Deployment & Infrastructure Guide
 
-This project can be deployed using Docker Compose for self-hosting or Vercel/Serverless for the backend.
+This guide outlines deployment options for hosting Atlas in local development, staging, and production environments.
 
-## Docker Deployment (Recommended)
-Each component (Backend, Slack MCP, GitHub MCP, etc.) has its own Dockerfile. The `docker-compose.yml` links them together.
+---
 
-1. Create a `.env` file from `.env.example`.
-2. Run `docker-compose up -d --build`.
-3. Use a reverse proxy (e.g., Nginx, Caddy, or Cloudflare Tunnels) to expose port 8000 for Slack webhooks.
+## 1. Docker Compose Setup (Production / Self-Hosting)
 
-## Vercel / Serverless Deployment
-The `backend/` directory can be deployed as a serverless function on Vercel. 
-- You must adapt the MCP client to use SSE (Server-Sent Events) over HTTP rather than `stdio` subprocesses if deploying in a serverless environment, since subprocess execution is often restricted.
-- The `vercel.json` provides the build configuration.
+The project includes a root `docker-compose.yml` configured with:
+- **`backend`**: FastAPI application container.
+- **`frontend`**: Next.js 15 dashboard container.
+- **`atlas_db`**: PostgreSQL 16 database.
+- **`atlas_redis`**: Redis 7.4 cache store.
+
+### Commands:
+
+```bash
+# Build and launch all services in detached mode
+docker compose up -d --build
+
+# Run database migrations
+docker compose exec backend alembic upgrade head
+
+# View backend logs
+docker compose logs backend -f
+```
+
+---
+
+## 2. Exposing Slack Webhooks (Development)
+
+Because Slack API requires a public HTTPS endpoint to deliver webhooks (`/slack/events`), use a public tunnel during local development:
+
+```bash
+# Expose port 8000 using localtunnel
+npx localtunnel --port 8000
+```
+
+Set the public URL in your Slack App settings under **Event Subscriptions**:
+`https://<your-subdomain>.loca.lt/slack/events`
+
+---
+
+## 3. Production Deployment Notes
+
+- **Reverse Proxy**: Place an Nginx, Caddy, or Cloudflare Tunnel in front of the backend container (`port 8000`) and frontend container (`port 3000`).
+- **HTTPS & Secure Cookies**: Set `COOKIE_SECURE=true` in `.env` when serving over HTTPS so `refresh_token` cookies enforce transport security.
+- **Master Encryption Key**: Generate a secure 32-byte key for `ATLAS_MASTER_KEY` to encrypt stored integration tokens.

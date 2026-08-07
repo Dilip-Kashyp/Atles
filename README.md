@@ -1,279 +1,179 @@
-# Atlas — Conversation Intelligence Platform
+# Atlas — Conversation Intelligence & Enterprise Platform
 
-Atlas is a modular AI platform for turning conversations into structured work. The current implementation is a working MVP that combines a FastAPI backend, a Next.js dashboard, Slack ingress, OAuth login, and a lightweight AI planning layer for turning requests into actions.
-
----
-
-## What the system does today
-
-Atlas currently supports:
-- a web dashboard for connecting integrations
-- OAuth sign-in with GitHub, Google, and Slack
-- Slack event ingestion and webhook handling
-- a backend orchestrator that can process chat and tool-driven requests
-- a simple AI pipeline that extracts intent and prepares action plans
-- provider-style execution scaffolding for GitHub issue creation
-
-The platform is intentionally built as a modular monolith so it can grow from MVP to a larger multi-tenant product without a full rewrite.
+Atlas is a modular enterprise AI platform for turning conversations into structured work. Built as a modular monolith, it combines a FastAPI backend, a Next.js 15 dashboard, multi-tenant Slack event ingestion, OAuth 2.0 authentication, and a Gemini-powered LLM orchestrator.
 
 ---
 
-## Current architecture
+## Key Features & Capabilities
 
-### High-level flow
+- **Unified Web Dashboard**: Onboarding, integration management, and workspace configuration.
+- **Enterprise Multi-Tenancy**: Organization & Workspace scoping with bound provider integrations.
+- **Dynamic Multi-Tenant Slack Ingress**: Dynamic token resolution per Slack Team ID, decrypted on-the-fly from PostgreSQL.
+- **Robust Auth & Token Rotation**: OAuth 2.0 (Google, GitHub, Slack) with automatic JWT access token generation and secure server-side refresh token rotation (HTTP-only cookies).
+- **Gemini LLM Orchestrator**: Function calling, tool dispatching, and conversation context management.
+- **Database & Migration Engine**: PostgreSQL schema managed via Alembic async migrations.
+
+---
+
+## High-Level Architecture
 
 ```text
-User / Slack / Web dashboard
-        │
-        ▼
-   API Layer (FastAPI)
-        │
-        ▼
-Conversation + Auth + Integration Services
-        │
-        ▼
-   AI Planning / Workflow Layer
-        │
-        ▼
-   Provider / Tool Execution Layer
-        │
-        ▼
-GitHub / Slack / future Jira / Notion / Google
+Slack / Web Dashboard / Endpoints
+             │
+             ▼
+      FastAPI API (v1)
+             │
+ ┌───────────┼───────────┐
+ ▼           ▼           ▼
+Auth    Integrations   Slack Ingress (Multi-Tenant DB Lookup)
+ Service   Service       │
+                         ▼
+                Gemini Orchestrator
+                         │
+                         ▼
+             Tool Dispatcher & Providers
 ```
 
-### Core modules
-
-- Backend API routes:
-  - auth for OAuth and JWT-style session handoff
-  - chat for direct conversational requests
-  - slack for event ingestion
-  - integrations for provider connection flows
-  - dashboard for workspace and integration views
-
-- Backend orchestration:
-  - orchestrator/agent.py handles the turn lifecycle
-  - workflow/ contains lightweight planning and state execution primitives
-  - ai/ contains the current conversation-planning pipeline
-
-- Frontend:
-  - Next.js app with a dashboard-style integration center
-  - login experience with multiple provider buttons
-
-- Data and auth:
-  - SQLAlchemy models for users, workspaces, memberships, and integrations
-  - encrypted credential handling for connected providers
-  - Redis-backed state handling for OAuth and short-lived flow data
-
 ---
 
-## Working implementation status
+## Core Modules & Project Structure
 
-### Working now
-- FastAPI app boots and serves API routes
-- Slack webhook and chat endpoints are wired
-- OAuth login flow is available for GitHub, Google, and Slack
-- Frontend login and dashboard shell render correctly
-- AI pipeline can plan a structured action for requests such as issue creation
-- Backend tests are passing
-
-### In progress / next milestones
-- full provider execution for Jira and Notion
-- richer AI reasoning and conversation extraction
-- persistent multi-workspace organization model refinement
-- real workflow execution tied to provider results
-- expanded dashboard analytics and activity views
-
----
-
-## Backend structure
+### Backend (`backend/app`)
 
 ```text
 backend/app/
-  api/
-    auth.py
-    chat.py
-    dashboard.py
-    integrations.py
-    slack.py
-    webhooks.py
-  auth/
-    jwt.py
-    oauth_registry.py
-  ai/
-    graph.py
-    planner.py
-    extractor.py
-    summarizer.py
-    formatter.py
-    prompts.py
-    state.py
-  orchestrator/
-    agent.py
-    platform_base.py
-    slack_handler.py
-    tool_dispatcher.py
-    provider.py
-    workflow_bridge.py
-  workflow/
-    engine.py
-    planner.py
-    states.py
-    tool_registry.py
-  credentials/
-    manager.py
-  models/
-    tenancy.py
-    integrations.py
-  database/
-    session.py
-  utils/
-    redis.py
+├── api/
+│   ├── auth.py                  # Legacy OAuth routes
+│   ├── dashboard.py             # Dashboard statistics
+│   ├── integrations.py          # Provider connection routes
+│   ├── slack.py                 # Multi-tenant Slack event handler (/slack/events)
+│   └── v1/
+│       ├── auth.py              # Centralized Auth v1 (refresh, logout, me)
+│       └── integrations.py      # Workspace integrations v1
+├── config.py                    # Environment settings (cookie_secure, master key, database URLs)
+├── credentials/
+│   └── manager.py               # Fernet symmetric token encryption/decryption
+├── database/
+│   └── session.py               # SQLAlchemy async engine & session management
+├── domain/
+│   ├── identity/                # User, Session, RefreshToken services & schemas
+│   └── integrations/            # Integration & credential persistence logic
+├── llm/
+│   ├── base.py                  # LLM Client interface
+│   └── gemini.py                # Google GenAI Gemini-2.5-Flash integration
+├── models/
+│   ├── integrations.py          # Integration & Credential DB models (provider_workspace_id)
+│   └── tenancy.py               # User, Organization, Workspace, Session models
+├── orchestrator/
+│   ├── agent.py                 # Core Orchestrator logic
+│   ├── platform_base.py         # Normalized event schema & ChatPlatform interface
+│   ├── slack_handler.py         # SlackWebhookHandler & per-tenant SlackPlatform
+│   └── tool_dispatcher.py       # Tool execution dispatcher
+└── tools/                       # Integrations tools (GitHub, Notion, Slack)
 ```
 
----
-
-## Frontend structure
+### Frontend (`frontend/src`)
 
 ```text
-frontend/src/app/
-  layout.tsx
-  page.tsx
-  globals.css
+frontend/src/
+├── app/
+│   ├── dashboard/               # Workspace dashboard
+│   ├── integrations/            # Integration settings page
+│   ├── login/                   # OAuth login portal
+│   └── page.tsx                 # Root landing page
+├── components/                  # UI components (Button, Card, Stack, Icons)
+└── helper/
+    ├── apiClient.ts             # Centralized fetch wrapper with automatic token refresh
+    └── auth.ts                  # Auth helpers
 ```
-
-The frontend currently provides the main onboarding and integration experience, while the backend supplies the real API and auth behavior.
 
 ---
 
-## Authentication and OAuth flow
+## Authentication & Token Rotation System
 
-The current auth flow is:
-
-1. User selects GitHub, Google, or Slack on the landing screen.
-2. Frontend redirects to the backend OAuth route.
-3. Backend stores a temporary state value and redirects the user to the OAuth provider.
-4. Provider returns an authorization code.
-5. Backend exchanges the code, creates or updates the user record, and issues a frontend redirect containing the access token.
-6. Frontend stores the token and enters the authenticated dashboard experience.
-
-This flow is implemented through the shared OAuth registry in the backend auth layer.
+1. **User Authentication**: Select Google, GitHub, or Slack on `/login`.
+2. **OAuth Exchange**: Backend exchanges authorization code, provisions default workspace, creates session record, and generates access token.
+3. **Storage & Cookies**:
+   - Access token stored in `localStorage` (`atlas_access_token`) and cookie (`atlas_access_token`).
+   - Server-side opaque `refresh_token` stored in HTTP-only cookie (`samesite=lax`, `secure=settings.cookie_secure`).
+4. **Token Refresh**: On HTTP `401 Unauthorized`, `apiClient.ts` calls `POST /api/v1/auth/refresh` (with `credentials: "include"`). The backend verifies the refresh token hash, revokes the old token, issues a rotated refresh cookie, and returns a fresh access token.
 
 ---
 
-## Current development workflow
+## Quickstart Development Guide
 
-### Run the backend
+### 1. Environment Setup
 
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
-```
-
-### Run the frontend
+Copy `.env.example` to `.env`:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cp .env.example .env
 ```
 
-### Run tests
+Configure required variables in `.env`:
 
-```bash
-cd backend
-python -m pytest -q
+```env
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+
+# OAuth Credentials
+SLACK_CLIENT_ID=your_slack_client_id
+SLACK_CLIENT_SECRET=your_slack_client_secret
+
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Database & Redis (Docker Compose defaults)
+DATABASE_URL=postgresql+asyncpg://atlas:atlas_secure_pass@localhost:5432/atlas_dev
+REDIS_URL=redis://localhost:6379/0
 ```
 
-### Run with Docker
+### 2. Run with Docker Compose (Recommended)
 
 ```bash
 docker compose up -d --build
 ```
 
----
+Services:
+- **Backend API**: `http://localhost:8000`
+- **Frontend Dashboard**: `http://localhost:3000`
+- **PostgreSQL**: `localhost:5432`
+- **Redis**: `localhost:6379`
 
-## Environment notes
+### 3. Database Migrations (Alembic)
 
-The application expects the following environment values to be configured:
-
-```env
-GEMINI_API_KEY=...
-SLACK_BOT_TOKEN=...
-SLACK_SIGNING_SECRET=...
-
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+```bash
+docker compose exec backend alembic upgrade head
 ```
-
-If OAuth credentials are not configured, the app still runs in a local/demo-style mode for frontend exploration and backend testing.
 
 ---
 
-## Product direction
+## Slack Webhook Setup (Development Tunnel)
 
-The current product direction is a practical MVP for Atlas:
-- keep the architecture modular
-- prioritize reliable integrations over premature complexity
-- make the AI pipeline useful for planning and actioning conversations
-- expand providers and analytics incrementally
+Slack requires a public HTTPS URL to deliver event webhooks.
 
-The next major step is to connect the AI planning layer to real provider execution end to end so a user request can flow from conversation to actual GitHub, Jira, or Notion work automatically.
+1. Expose backend port `8000` using localtunnel or ngrok:
+   ```bash
+   npx localtunnel --port 8000
+   ```
+2. In your [Slack API Dashboard](https://api.slack.com/apps):
+   - Go to **Event Subscriptions** -> Enable Events.
+   - Set **Request URL** to:
+     `https://<your-tunnel-url>/slack/events`
+   - Subscribe to Bot Events: `app_mention`.
+3. Add Redirect URL under **OAuth & Permissions**:
+   `http://localhost:8000/api/v1/workspaces/integrations/slack/callback`
+4. On your dashboard (`http://localhost:3000/integrations`), click **Connect Slack** to authorize your workspace.
 
-### 1. Environment Setup
+---
+
+## Testing
+
+Run backend tests using pytest inside the container or virtual environment:
+
 ```bash
-cp .env.example .env
+docker compose exec backend pytest -v
 ```
-Fill in the required secrets:
-```env
-GEMINI_API_KEY=your_gemini_api_key
-SLACK_BOT_TOKEN=xoxb-your-token
-SLACK_SIGNING_SECRET=your_signing_secret
-
-# Optional integrations
-GITHUB_TOKEN=ghp_your_github_token
-NOTION_TOKEN=secret_your_notion_token
-
-# Memory (optional — bot works stateless without it)
-MONGODB_URI=mongodb+srv://...
-```
-
-### 2. Run Backend
-```bash
-cd backend
-python -m venv .venv && .venv\Scripts\activate   # Windows
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
-```
-
-### 3. Run Tests
-```bash
-cd backend
-python -m pytest ../tests/ -v
-# 124 tests · 0 failures
-```
-
-### 4. Expose to Slack (Development)
-Use [`ngrok`](https://ngrok.com) or similar to expose `localhost:8000`:
-```bash
-python ng.py
-```
-Or run directly:
-```bash
-ngrok http 8000
-```
-Set your Slack App's Event Subscriptions URL to:
-```
-https://<your-ngrok-url>/slack/events
-```
-
-### 5. Docker (Production)
-```bash
-docker-compose up -d --build
-```
-Then point a reverse proxy (Nginx / Caddy / Cloudflare Tunnel) at port `8000`.
