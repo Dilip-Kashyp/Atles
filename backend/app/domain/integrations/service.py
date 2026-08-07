@@ -1,15 +1,16 @@
 """
 Integration Service.
 """
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.integrations import Integration, Credential, WorkspaceCapability
 from app.credentials.manager import CredentialManager
+from app.models.integrations import Credential, Integration, WorkspaceCapability
 
 
 class IntegrationService:
@@ -17,7 +18,7 @@ class IntegrationService:
         self.db = db
         self.cred_manager = CredentialManager()
 
-    async def get_integrations(self, workspace_id: UUID) -> List[Integration]:
+    async def get_integrations(self, workspace_id: UUID) -> list[Integration]:
         result = await self.db.execute(
             select(Integration)
             .where(Integration.workspace_id == workspace_id)
@@ -30,11 +31,11 @@ class IntegrationService:
         workspace_id: UUID,
         user_id: UUID,
         provider: str,
-        token_data: Dict[str, Any]
+        token_data: dict[str, Any]
     ) -> Integration:
         """Create or update an integration based on OAuth token exchange."""
         
-        # Check if already connected for this workspace
+        
         result = await self.db.execute(
             select(Integration)
             .where(
@@ -45,7 +46,7 @@ class IntegrationService:
         )
         integration = result.scalars().first()
 
-        # Extract provider workspace ID if available (e.g. Slack Team ID)
+        
         provider_workspace_id = None
         if provider == "slack":
             provider_workspace_id = token_data.get("raw_profile", {}).get("team", {}).get("id")
@@ -55,7 +56,7 @@ class IntegrationService:
             integration = Integration(
                 workspace_id=workspace_id,
                 provider_type=provider,
-                provider_variant=f"{provider}_cloud", # Default variant
+                provider_variant=f"{provider}_cloud", 
                 provider_workspace_id=provider_workspace_id,
                 type="WORKSPACE",
                 status="CONNECTED"
@@ -68,7 +69,7 @@ class IntegrationService:
             if provider_workspace_id:
                 integration.provider_workspace_id = provider_workspace_id
 
-        # Update or create credentials
+        
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in")
@@ -96,8 +97,8 @@ class IntegrationService:
             )
             self.db.add(cred)
 
-        # Update capabilities (basic sync for now)
-        # Delete existing ones and recreate
+        
+        
         if not is_new:
             for cap in integration.capabilities:
                 await self.db.delete(cap)

@@ -1,8 +1,10 @@
 """
 GitHub Login Provider Implementation.
 """
-from typing import Any, Dict, Optional
+from typing import Any
+
 import httpx
+
 from app.config import get_settings
 from app.domain.identity.providers.base import BaseLoginProvider
 
@@ -13,7 +15,7 @@ class GithubLoginProvider(BaseLoginProvider):
         return "github"
 
     def get_authorization_url(
-        self, state: str, redirect_uri: str, pkce_challenge: Optional[str] = None
+        self, state: str, redirect_uri: str, pkce_challenge: str | None = None
     ) -> str:
         settings = get_settings()
         client_id = settings.github_client_id
@@ -25,8 +27,8 @@ class GithubLoginProvider(BaseLoginProvider):
         return url
 
     async def exchange_code(
-        self, code: str, redirect_uri: str, pkce_verifier: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, code: str, redirect_uri: str, pkce_verifier: str | None = None
+    ) -> dict[str, Any]:
         settings = get_settings()
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -45,7 +47,7 @@ class GithubLoginProvider(BaseLoginProvider):
             token_data = resp.json()
             access_token = token_data.get("access_token")
 
-            # Fetch user profile
+            
             user_resp = await client.get(
                 "https://api.github.com/user",
                 headers={"Authorization": f"Bearer {access_token}", "User-Agent": "Atlas-SaaS"},
@@ -54,7 +56,7 @@ class GithubLoginProvider(BaseLoginProvider):
                 raise RuntimeError(f"Failed to fetch GitHub user profile: {user_resp.text}")
             profile = user_resp.json()
 
-            # Fetch emails if primary email is private
+            
             email = profile.get("email")
             if not email:
                 emails_resp = await client.get(

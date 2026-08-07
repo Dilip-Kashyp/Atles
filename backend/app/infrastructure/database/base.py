@@ -4,17 +4,14 @@ Infrastructure database base module.
 Single source of truth for SQLAlchemy Base and reusable mixins.
 All domain models MUST inherit from Base defined here.
 """
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     """Declarative base for all Atlas SQLAlchemy models."""
-    pass
 
 
 class TimestampMixin:

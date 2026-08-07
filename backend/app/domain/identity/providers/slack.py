@@ -1,8 +1,10 @@
 """
 Slack Login Provider Implementation.
 """
-from typing import Any, Dict, Optional
+from typing import Any
+
 import httpx
+
 from app.config import get_settings
 from app.domain.identity.providers.base import BaseLoginProvider
 
@@ -13,11 +15,11 @@ class SlackLoginProvider(BaseLoginProvider):
         return "slack"
 
     def get_authorization_url(
-        self, state: str, redirect_uri: str, pkce_challenge: Optional[str] = None
+        self, state: str, redirect_uri: str, pkce_challenge: str | None = None
     ) -> str:
         settings = get_settings()
         client_id = settings.slack_client_id
-        # Scopes required for identity and bot tasks
+        
         user_scope = "identity.basic,identity.email,identity.avatar"
         bot_scope = "chat:write,commands,channels:read"
         
@@ -29,8 +31,8 @@ class SlackLoginProvider(BaseLoginProvider):
         return url
 
     async def exchange_code(
-        self, code: str, redirect_uri: str, pkce_verifier: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, code: str, redirect_uri: str, pkce_verifier: str | None = None
+    ) -> dict[str, Any]:
         settings = get_settings()
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -49,13 +51,13 @@ class SlackLoginProvider(BaseLoginProvider):
             if not token_data.get("ok"):
                 raise RuntimeError(f"Slack token exchange failed: {token_data.get('error')}")
 
-            # For Slack v2, we get an authed_user object for the user who installed it
+            
             authed_user = token_data.get("authed_user", {})
             user_id = authed_user.get("id")
-            access_token = authed_user.get("access_token") # User token
-            bot_token = token_data.get("access_token") # Bot token
+            access_token = authed_user.get("access_token") 
+            bot_token = token_data.get("access_token") 
 
-            # Fetch user profile using user token
+            
             user_resp = await client.get(
                 "https://slack.com/api/users.identity",
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -72,7 +74,7 @@ class SlackLoginProvider(BaseLoginProvider):
                 "name": user_info.get("name"),
                 "username": user_info.get("name"),
                 "avatar_url": user_info.get("image_512") or user_info.get("image_192"),
-                "access_token": bot_token or access_token,  # Default to bot token for workspace tasks
+                "access_token": bot_token or access_token,  
                 "refresh_token": token_data.get("refresh_token"),
                 "expires_in": token_data.get("expires_in"),
                 "scopes": token_data.get("scope", "").split(","),

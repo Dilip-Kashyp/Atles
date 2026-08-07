@@ -3,23 +3,26 @@ API v1 API Keys Endpoints.
 
 Handles creating and revoking API keys for human Users OR Service Accounts.
 """
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
 from app.dependencies import get_current_user
 from app.domain.identity.repository import ApiKeyRepository
-from app.domain.identity.schemas import ApiKeyCreate, ApiKeyCreateResponse, ApiKeyResponse
+from app.domain.identity.schemas import (
+    ApiKeyCreate,
+    ApiKeyCreateResponse,
+    ApiKeyResponse,
+)
 from app.domain.workspace.services import RBACService
 from app.infrastructure.security import hashing
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/api-keys", tags=["api-keys"])
 
 
-@router.get("", response_model=List[ApiKeyResponse])
+@router.get("", response_model=list[ApiKeyResponse])
 async def list_api_keys(
     workspace_id: UUID,
     current_user=Depends(get_current_user),
@@ -43,7 +46,7 @@ async def create_api_key(
     rbac_service = RBACService(db)
     await rbac_service.require_permission(workspace_id, current_user.id, "api_key:manage")
 
-    # Generate raw key: atls_{prefix}_{32_chars}
+    
     prefix_rand = hashing.generate_secure_token(4).lower()
     secret_rand = hashing.generate_secure_token(32)
     key_prefix = f"atls_{prefix_rand}"

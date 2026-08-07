@@ -1,13 +1,13 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
 
 from app.database.session import get_db
 from app.dependencies import get_current_user, get_workspace_membership
-from app.models.tenancy import User, Workspace, Membership
 from app.models.integrations import Integration, WorkspaceCapability
-from pydantic import BaseModel
+from app.models.tenancy import Membership, User, Workspace
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -38,7 +38,7 @@ class CapabilityMappingRequest(BaseModel):
     integration_id: str
 
 
-@router.get("/workspaces", response_model=List[WorkspaceResponse])
+@router.get("/workspaces", response_model=list[WorkspaceResponse])
 async def get_workspaces(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -56,7 +56,7 @@ async def get_workspaces(
     ]
 
 
-@router.get("/workspaces/{workspace_id}/integrations", response_model=List[IntegrationResponse])
+@router.get("/workspaces/{workspace_id}/integrations", response_model=list[IntegrationResponse])
 async def get_integrations(
     workspace_id: str,
     membership: Membership = Depends(get_workspace_membership),
@@ -97,7 +97,7 @@ async def disconnect_integration(
     db: AsyncSession = Depends(get_db),
 ):
     """Disconnect/Delete an integration in the workspace."""
-    # Ensure user has ADMIN or OWNER privileges to delete integrations
+    
     if membership.role not in ["OWNER", "ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -116,7 +116,6 @@ async def disconnect_integration(
 
     await db.delete(integration)
     await db.commit()
-    return
 
 
 @router.get("/workspaces/{workspace_id}/capabilities")
@@ -154,7 +153,7 @@ async def update_capability_mapping(
             detail="Only Workspace admins/owners can update capability mappings.",
         )
 
-    # Verify integration exists in workspace
+    
     result = await db.execute(
         select(Integration).filter(
             Integration.id == payload.integration_id,
@@ -168,7 +167,7 @@ async def update_capability_mapping(
             detail="Target integration does not exist in this workspace",
         )
 
-    # Check for existing mapping
+    
     cap_result = await db.execute(
         select(WorkspaceCapability).filter(
             WorkspaceCapability.workspace_id == workspace_id,

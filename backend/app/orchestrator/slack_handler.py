@@ -4,14 +4,16 @@ import hmac
 import logging
 import re
 import time
-from collections import deque
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from fastapi import HTTPException, Request, Response
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from app.config import Settings
+from app.domain.shared.exceptions import DeduplicationUnavailableError
+from app.infrastructure.cache.redis import redis_client
 from app.orchestrator.platform_base import ChatPlatform, NormalizedEvent
 
 log = logging.getLogger(__name__)
@@ -31,13 +33,31 @@ class SlackPlatform(ChatPlatform):
 
     async def send_typing_indicator(self, channel: str, thread_ts: str) -> None:
         try:
-            self.client.chat_postMessage(channel=channel, thread_ts=thread_ts, text="⏳ Thinking…")
+            
+            
+            
+            
+            await asyncio.to_thread(
+                self.client.chat_postMessage,
+                channel=channel, 
+                thread_ts=thread_ts, 
+                text="⏳ Thinking…"
+            )
         except SlackApiError:
             pass
 
     async def send_reply(self, channel: str, thread_ts: str, text: str) -> None:
         try:
-            self.client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=text)
+            
+            
+            
+            
+            await asyncio.to_thread(
+                self.client.chat_postMessage,
+                channel=channel, 
+                thread_ts=thread_ts, 
+                text=text
+            )
             log.info("[CHECKPOINT: SLACK_EGRESS] Posted reply to thread: %s", thread_ts)
         except SlackApiError as exc:
             log.error("[CHECKPOINT: SLACK_EGRESS_ERROR] Failed to post reply: %s", exc.response.get("error"))
@@ -46,7 +66,6 @@ class SlackPlatform(ChatPlatform):
 class SlackWebhookHandler:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._seen_event_ids: deque[str] = deque(maxlen=512)
 
     async def parse_and_verify(self, request: Request) -> dict[str, Any] | Response:
         log.info("[CHECKPOINT: SLACK_INGRESS] Incoming Slack webhook request")
@@ -73,17 +92,17 @@ class SlackWebhookHandler:
             
         return payload
         
-    def normalize_event(self, payload: dict[str, Any], bot_user_id: str | None = None) -> NormalizedEvent | Response:
+    async def normalize_event(self, payload: dict[str, Any], bot_user_id: str | None = None) -> NormalizedEvent | Response:
         event = payload.get("event", {})
         if event.get("type") != "app_mention":
             return Response(content="ok", media_type="text/plain")
 
         event_ts = event.get("event_ts") or event.get("ts", "")
-        if self._already_seen(event_ts):
+        if await self._already_seen(event_ts):
             log.info("[CHECKPOINT: SLACK_DEDUP] Skipping duplicate event_ts: %s", event_ts)
             return Response(content="ok", media_type="text/plain")
 
-        # Extract mention text
+        
         raw_text = event.get("text", "")
         if bot_user_id:
             question = re.sub(rf"<@{re.escape(bot_user_id)}>", "", raw_text, count=1).strip()
@@ -110,7 +129,7 @@ class SlackWebhookHandler:
         except (TypeError, ValueError):
             return False
 
-        if abs(time.time() - ts_int) > 300:
+        if abs(time.time() - ts_int) > self.settings.slack_timestamp_tolerance_seconds:
             return False
 
         base_string = f"v0:{timestamp}:{request_body.decode('utf-8')}"
@@ -125,8 +144,20 @@ class SlackWebhookHandler:
 
         return hmac.compare_digest(expected_sig, signature)
 
-    def _already_seen(self, event_id: str) -> bool:
-        if event_id in self._seen_event_ids:
-            return True
-        self._seen_event_ids.append(event_id)
-        return False
+    async def _already_seen(self, event_id: str) -> bool:
+        
+        try:
+            is_new = await redis_client.set(
+                f"slack_event:{event_id}", 
+                "1", 
+                nx=True, 
+                ex=self.settings.slack_dedup_ttl_seconds
+            )
+            return not is_new
+        except Exception as exc:
+            if self.settings.slack_dedup_fail_mode == "closed":
+                log.error("[CHECKPOINT: REDIS_FAIL_CLOSED] Deduplication unavailable. Rejecting event.")
+                raise DeduplicationUnavailableError("Redis is unreachable.") from exc
+            
+            log.warning("[CHECKPOINT: REDIS_FAIL_OPEN] Redis deduplication failed, proceeding to process event: %s", exc)
+            return False

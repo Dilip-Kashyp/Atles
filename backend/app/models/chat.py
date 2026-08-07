@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Date, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
+
 from app.models.base import Base
 
 
@@ -11,7 +13,7 @@ class Conversation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    platform = Column(String, nullable=False)  # 'slack', 'teams', 'discord'
+    platform = Column(String, nullable=False)  
     external_thread_id = Column(String, nullable=False, index=True)
     channel_id = Column(String, nullable=False)
     title = Column(String, nullable=True)
@@ -28,7 +30,7 @@ class Message(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     external_message_id = Column(String, nullable=True, index=True)
-    author_id = Column(String, nullable=False)  # External user ID (e.g. Slack user ID)
+    author_id = Column(String, nullable=False)  
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     msg_metadata = Column(JSONB, nullable=False, default=dict)
@@ -44,8 +46,8 @@ class ActionItem(Base):
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    priority = Column(String, nullable=False, default="MEDIUM")  # 'HIGH', 'MEDIUM', 'LOW'
-    status = Column(String, nullable=False, default="PENDING")  # 'PENDING', 'CREATED', 'IGNORED'
+    priority = Column(String, nullable=False, default="MEDIUM")  
+    status = Column(String, nullable=False, default="PENDING")  
     owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     due_date = Column(Date, nullable=True)
     confidence = Column(Float, nullable=False, default=1.0)

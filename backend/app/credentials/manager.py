@@ -1,6 +1,8 @@
 import base64
 import hashlib
+
 from cryptography.fernet import Fernet
+
 from app.config import get_settings
 
 settings = get_settings()

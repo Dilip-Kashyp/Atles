@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.workflow.states import ConversationState
 
@@ -31,7 +32,7 @@ class WorkflowEngine:
                 state.result = await self._tool_registry[tool_name](state.tool_arguments)
             else:
                 state.result = "No workflow action required"
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception as exc:  
             state.error = str(exc)
             log.exception("[WORKFLOW] Execution failed")
 

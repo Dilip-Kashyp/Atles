@@ -42,11 +42,3 @@ class RuntimeCache:
 
         self._store[session_key] = (ctx, expires_at)
         log.debug("[CACHE_SET] session_key=%s ttl=%ds", session_key, self._ttl)
-
-    def invalidate(self, session_key: str) -> None:
-        if session_key in self._store:
-            del self._store[session_key]
-            log.debug("[CACHE_INVALIDATE] session_key=%s", session_key)
-
-    def size(self) -> int:
-        return len(self._store)

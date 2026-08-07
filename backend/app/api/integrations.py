@@ -1,15 +1,16 @@
 import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.database.session import get_db
-from app.dependencies import get_current_user, get_workspace_membership
-from app.models.tenancy import User, Membership
-from app.models.integrations import Integration, Credential, WorkspaceCapability
 from app.auth.oauth_registry import oauth_registry
 from app.credentials.manager import encrypt_token
+from app.database.session import get_db
+from app.dependencies import get_current_user
+from app.models.integrations import Credential, Integration, WorkspaceCapability
+from app.models.tenancy import Membership, User
 from app.utils.redis import redis_client
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -23,7 +24,7 @@ async def connect_integration(
     db: AsyncSession = Depends(get_db),
 ):
     """Initiate OAuth flow to link an external integration to a workspace."""
-    # Ensure user has access to the workspace
+    
     result = await db.execute(
         select(Membership).filter(
             Membership.user_id == user.id,
@@ -43,10 +44,10 @@ async def connect_integration(
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
     state = secrets.token_urlsafe(32)
-    # Store state mapping to workspace_id and owner_id for verification in callback
+    
     await redis_client.setex(f"integration_state:{state}", 600, f"{workspace_id}:{user.id}")
 
-    # For development, redirect to callback endpoint on the API (which then redirects to dashboard)
+    
     redirect_uri = f"http://localhost:8000/api/integrations/{provider}/callback"
     auth_url = provider_impl.get_authorization_url(state, redirect_uri)
     return RedirectResponse(auth_url)
@@ -80,16 +81,16 @@ async def connect_callback(
     if not access_token:
         raise HTTPException(status_code=400, detail="OAuth did not return an access token")
 
-    # Encrypt the token using Fernet AES-128
+    
     encrypted_token = encrypt_token(access_token)
     encrypted_refresh = None
     if token_payload.get("refresh_token"):
          encrypted_refresh = encrypt_token(token_payload.get("refresh_token"))
 
-    # Determine provider variant (cloud vs enterprise)
+    
     provider_variant = f"{provider}_cloud"
 
-    # Query or create the integration config
+    
     result = await db.execute(
         select(Integration).filter(
             Integration.workspace_id == workspace_id,
@@ -109,7 +110,7 @@ async def connect_callback(
         db.add(integration)
         await db.flush()
 
-    # Query or create credential
+    
     cred_result = await db.execute(
         select(Credential).filter(Credential.integration_id == integration.id)
     )
@@ -128,9 +129,9 @@ async def connect_callback(
         )
         db.add(credential)
 
-    # Set up default capability mappings on connection
+    
     if provider == "github":
-        # Automatically map create_issue to github
+        
         cap_result = await db.execute(
             select(WorkspaceCapability).filter(
                 WorkspaceCapability.workspace_id == workspace_id,
@@ -148,5 +149,5 @@ async def connect_callback(
 
     await db.commit()
 
-    # Redirect user back to Next.js dashboard
+    
     return RedirectResponse(f"http://localhost:3000/dashboard?integration_success={provider}")

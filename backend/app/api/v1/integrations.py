@@ -1,5 +1,4 @@
 import secrets
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -20,7 +19,7 @@ settings = get_settings()
 
 
 def _resolve_redirect_uri(provider: str) -> str:
-    # Use a static callback URL so it can be whitelisted in OAuth provider settings
+    
     return f"http://localhost:8000/api/v1/workspaces/integrations/{provider}/callback"
 
 
@@ -41,7 +40,7 @@ async def connect_integration(
     provider_impl = login_provider_registry.get(provider)
     state = secrets.token_urlsafe(32)
 
-    # Store state mapping to workspace_id and actor_id
+    
     state_val = f"{workspace_id}:{identity.actor_id}"
     await redis_client.setex(f"integration_state:{state}", 600, state_val)
 
@@ -82,7 +81,7 @@ async def connect_integration_callback(
     try:
         token_payload = await provider_impl.exchange_code(code, redirect_uri)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Provider token exchange failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Provider token exchange failed: {e!s}")
 
     service = IntegrationService(db)
     await service.connect_integration(
@@ -97,7 +96,7 @@ async def connect_integration_callback(
     return RedirectResponse(frontend_redirect, status_code=status.HTTP_302_FOUND)
 
 
-@router.get("/{workspace_id}/integrations", response_model=List[IntegrationResponse])
+@router.get("/{workspace_id}/integrations", response_model=list[IntegrationResponse])
 async def list_integrations(
     workspace_id: UUID,
     context: CurrentWorkspaceContext = Depends(get_current_workspace_context),

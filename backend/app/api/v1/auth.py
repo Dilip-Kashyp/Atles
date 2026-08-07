@@ -4,7 +4,6 @@ API v1 Auth Endpoints.
 Handles OAuth login, account linking, account unlinking, account merging, session management, token refresh, and request context inspection.
 """
 import secrets
-from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -216,8 +215,8 @@ async def merge_accounts(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(
     response: Response,
-    payload: Optional[RefreshRequest] = None,
-    refresh_token_cookie: Optional[str] = Cookie(None, alias="refresh_token"),
+    payload: RefreshRequest | None = None,
+    refresh_token_cookie: str | None = Cookie(None, alias="refresh_token"),
     db: AsyncSession = Depends(get_db),
 ):
     raw_token = (payload.refresh_token if payload and payload.refresh_token else None) or refresh_token_cookie

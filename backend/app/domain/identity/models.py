@@ -43,10 +43,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     avatar_url = Column(Text, nullable=True)
     locale = Column(String(10), nullable=False, default="en")
     timezone = Column(String(64), nullable=False, default="UTC")
-    status = Column(String(20), nullable=False, default="active")  # 'active' | 'suspended' | 'deactivated'
+    status = Column(String(20), nullable=False, default="active")  
     metadata_ = Column("metadata", JSONB, nullable=False, default=dict)
 
-    # Relationships
+    
     oauth_accounts = relationship(
         "OAuthAccount", back_populates="user", cascade="all, delete-orphan"
     )
@@ -89,7 +89,7 @@ class OAuthAccount(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    provider = Column(String(50), nullable=False)  # 'google', 'github', 'microsoft', 'slack', 'okta'
+    provider = Column(String(50), nullable=False)  
     provider_user_id = Column(String(255), nullable=False)
     provider_email = Column(String(320), nullable=True)
     provider_username = Column(String(255), nullable=True)
@@ -100,7 +100,7 @@ class OAuthAccount(Base, TimestampMixin):
     token_expires_at = Column(DateTime(timezone=True), nullable=True)
     raw_profile = Column(JSONB, nullable=False, default=dict)
 
-    # Relationships
+    
     user = relationship("User", back_populates="oauth_accounts")
 
     __table_args__ = (
@@ -146,7 +146,7 @@ class Session(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationships
+    
     user = relationship("User", back_populates="sessions")
     refresh_tokens = relationship(
         "RefreshToken", back_populates="session", cascade="all, delete-orphan"
@@ -200,7 +200,7 @@ class RefreshToken(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationships
+    
     session = relationship("Session", back_populates="refresh_tokens")
     user = relationship("User", back_populates="refresh_tokens")
 
@@ -228,14 +228,14 @@ class ServiceAccount(Base, TimestampMixin):
         ForeignKey("roles.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    status = Column(String(20), nullable=False, default="active")  # 'active' | 'disabled'
+    status = Column(String(20), nullable=False, default="active")  
     created_by_user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    # Relationships
+    
     role = relationship("Role")
     workspace = relationship("Workspace", back_populates="service_accounts")
     api_keys = relationship(
@@ -290,7 +290,7 @@ class ApiKey(Base, TimestampMixin):
         nullable=True,
     )
 
-    # Relationships
+    
     user = relationship("User", foreign_keys=[user_id])
     service_account = relationship("ServiceAccount", back_populates="api_keys")
 

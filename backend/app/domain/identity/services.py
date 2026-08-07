@@ -8,27 +8,23 @@ Contains business logic for:
 - Account merging (MergeAccountService for multi-email duplicate merging)
 """
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.audit.service import AuditService
-from app.domain.identity.models import OAuthAccount, ServiceAccount, Session, User
+from app.domain.identity.models import OAuthAccount, Session, User
 from app.domain.identity.repository import (
-    ApiKeyRepository,
     OAuthAccountRepository,
     RefreshTokenRepository,
-    ServiceAccountRepository,
     SessionRepository,
     UserRepository,
 )
-from app.domain.shared.events import AuditEvent as DomainAuditEvent, event_bus
 from app.domain.shared.exceptions import (
     AccountAlreadyLinkedError,
     AuthenticationError,
-    ConflictError,
     ExpiredTokenError,
     InvalidTokenError,
     OAuthError,
@@ -54,9 +50,9 @@ class SessionService:
     async def create_session(
         self,
         user_id: UUID,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-    ) -> Tuple[Session, str, str]:
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[Session, str, str]:
         expires_at = datetime.now(timezone.utc) + timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS)
         session = await self.session_repo.create(
             user_id=user_id,
@@ -83,7 +79,7 @@ class SessionService:
 
     async def rotate_refresh_token(
         self, raw_refresh_token: str
-    ) -> Tuple[str, str, UUID]:
+    ) -> tuple[str, str, UUID]:
         token_hash = hashing.hash_token(raw_refresh_token)
         token_record = await self.refresh_repo.get_by_hash(token_hash)
 
@@ -152,11 +148,11 @@ class IdentityService:
         self,
         provider: str,
         provider_user_id: str,
-        provider_email: Optional[str],
-        profile_data: Dict[str, Any],
-        access_token: Optional[str] = None,
-        refresh_token: Optional[str] = None,
-    ) -> Tuple[User, OAuthAccount, bool]:
+        provider_email: str | None,
+        profile_data: dict[str, Any],
+        access_token: str | None = None,
+        refresh_token: str | None = None,
+    ) -> tuple[User, OAuthAccount, bool]:
         oauth_account = await self.oauth_repo.get_by_provider_and_id(
             provider, provider_user_id
         )
@@ -230,10 +226,10 @@ class AccountLinkingService:
         user_id: UUID,
         provider: str,
         provider_user_id: str,
-        provider_email: Optional[str],
-        profile_data: Dict[str, Any],
-        access_token: Optional[str] = None,
-        refresh_token: Optional[str] = None,
+        provider_email: str | None,
+        profile_data: dict[str, Any],
+        access_token: str | None = None,
+        refresh_token: str | None = None,
     ) -> OAuthAccount:
         existing = await self.oauth_repo.get_by_provider_and_id(
             provider, provider_user_id
@@ -261,7 +257,7 @@ class AccountLinkingService:
             raw_profile=profile_data,
         )
 
-        # Audit event
+        
         audit = AuditService(self.db)
         await audit.record_event(
             event_type="OAuthLinked",
@@ -318,14 +314,14 @@ class MergeAccountService:
         if not primary_user or not secondary_user:
             raise UserNotFoundError("One or both user accounts do not exist.")
 
-        # 1. Rebind OAuth accounts
+        
         await self.db.execute(
             update(OAuthAccount)
             .where(OAuthAccount.user_id == secondary_user_id)
             .values(user_id=primary_user_id)
         )
 
-        # 2. Rebind Organization members (avoid duplicate constraint)
+        
         sec_org_mems_stmt = select(OrganizationMember).filter(
             OrganizationMember.user_id == secondary_user_id
         )
@@ -343,7 +339,7 @@ class MergeAccountService:
             else:
                 await self.db.delete(om)
 
-        # 3. Rebind Workspace members (avoid duplicate constraint)
+        
         sec_ws_mems_stmt = select(WorkspaceMember).filter(
             WorkspaceMember.user_id == secondary_user_id
         )
@@ -361,11 +357,11 @@ class MergeAccountService:
             else:
                 await self.db.delete(wm)
 
-        # 4. Soft-delete secondary user
+        
         secondary_user.soft_delete()
         await self.db.flush()
 
-        # Audit event
+        
         audit = AuditService(self.db)
         await audit.record_event(
             event_type="AccountMerged",

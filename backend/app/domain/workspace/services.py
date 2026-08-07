@@ -8,11 +8,10 @@ Contains business logic for:
 - Service Account lifecycle management
 - Workspace RBAC & Member invitations
 """
+import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Set, Tuple
 from uuid import UUID
 
-import re
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.audit.service import AuditService
@@ -20,13 +19,10 @@ from app.domain.identity.models import ServiceAccount, User
 from app.domain.identity.repository import ServiceAccountRepository
 from app.domain.shared.exceptions import (
     AlreadyMemberError,
-    ConflictError,
-    DuplicateSlugError,
     InsufficientPermissionsError,
     InvitationAlreadyAcceptedError,
     InvitationExpiredError,
     InvitationNotFoundError,
-    InvitationRevokedError,
     OrganizationNotFoundError,
     ValidationError,
     WorkspaceMembershipRequiredError,
@@ -34,10 +30,7 @@ from app.domain.shared.exceptions import (
 )
 from app.domain.workspace.models import (
     Organization,
-    OrganizationMember,
-    Role,
     Workspace,
-    WorkspaceConfiguration,
     WorkspaceInvitation,
     WorkspaceMember,
     WorkspacePolicy,
@@ -45,8 +38,8 @@ from app.domain.workspace.models import (
 from app.domain.workspace.repository import (
     InviteRepository,
     MemberRepository,
-    OrgMemberRepository,
     OrganizationRepository,
+    OrgMemberRepository,
     PolicyRepository,
     RoleRepository,
     WorkspaceRepository,
@@ -69,7 +62,7 @@ class RBACService:
 
     async def get_user_permissions(
         self, workspace_id: UUID, user_id: UUID
-    ) -> Set[str]:
+    ) -> set[str]:
         member = await self.member_repo.get_membership(workspace_id, user_id)
         if not member or not member.role:
             return set()
@@ -114,13 +107,13 @@ class PolicyService:
     async def update_policy(
         self,
         workspace_id: UUID,
-        require_mfa: Optional[bool] = None,
-        allow_guests: Optional[bool] = None,
-        allowed_integrations: Optional[List[str]] = None,
-        retention_days: Optional[int] = None,
-        default_ai_provider: Optional[str] = None,
-        api_restrictions: Optional[dict] = None,
-        actor_id: Optional[UUID] = None,
+        require_mfa: bool | None = None,
+        allow_guests: bool | None = None,
+        allowed_integrations: list[str] | None = None,
+        retention_days: int | None = None,
+        default_ai_provider: str | None = None,
+        api_restrictions: dict | None = None,
+        actor_id: UUID | None = None,
     ) -> WorkspacePolicy:
         updated = await self.policy_repo.update_policy(
             workspace_id=workspace_id,
@@ -152,10 +145,10 @@ class OrganizationService:
     async def create_organization(
         self,
         name: str,
-        creator_user_id: Optional[UUID] = None,
-        slug: Optional[str] = None,
-        logo_url: Optional[str] = None,
-        billing_email: Optional[str] = None,
+        creator_user_id: UUID | None = None,
+        slug: str | None = None,
+        logo_url: str | None = None,
+        billing_email: str | None = None,
     ) -> Organization:
         org_slug = slugify(slug or name)
         existing = await self.org_repo.get_by_slug(org_slug)
@@ -202,7 +195,7 @@ class WorkspaceService:
         self.member_repo = MemberRepository(db)
         self.org_service = OrganizationService(db)
 
-    async def provision_personal_workspace(self, user: User) -> Tuple[Organization, Workspace, WorkspaceMember]:
+    async def provision_personal_workspace(self, user: User) -> tuple[Organization, Workspace, WorkspaceMember]:
         await self.role_repo.seed_system_roles_and_permissions()
 
         org_name = f"{user.display_name or 'Personal'}'s Org"
@@ -245,10 +238,10 @@ class WorkspaceService:
         self,
         creator_user_id: UUID,
         name: str,
-        org_id: Optional[UUID] = None,
-        slug: Optional[str] = None,
-        icon_url: Optional[str] = None,
-    ) -> Tuple[Workspace, WorkspaceMember]:
+        org_id: UUID | None = None,
+        slug: str | None = None,
+        icon_url: str | None = None,
+    ) -> tuple[Workspace, WorkspaceMember]:
         if not org_id:
             existing_ws = await self.ws_repo.list_by_user_id(creator_user_id)
             if existing_ws:
@@ -297,7 +290,7 @@ class WorkspaceService:
             raise WorkspaceNotFoundError(f"Workspace {workspace_id} not found")
         return ws
 
-    async def list_user_workspaces(self, user_id: UUID) -> List[Workspace]:
+    async def list_user_workspaces(self, user_id: UUID) -> list[Workspace]:
         return await self.ws_repo.list_by_user_id(user_id)
 
 
@@ -312,8 +305,8 @@ class ServiceAccountService:
         workspace_id: UUID,
         name: str,
         role_name: str = "Developer",
-        description: Optional[str] = None,
-        created_by_user_id: Optional[UUID] = None,
+        description: str | None = None,
+        created_by_user_id: UUID | None = None,
     ) -> ServiceAccount:
         role = await self.role_repo.get_by_name(role_name, workspace_id)
         if not role:
@@ -353,9 +346,9 @@ class InviteService:
         workspace_id: UUID,
         invited_by_user_id: UUID,
         email: str,
-        role_id: Optional[UUID] = None,
-        role_name: Optional[str] = "Developer",
-    ) -> Tuple[WorkspaceInvitation, str]:
+        role_id: UUID | None = None,
+        role_name: str | None = "Developer",
+    ) -> tuple[WorkspaceInvitation, str]:
         if not role_id:
             role = await self.role_repo.get_by_name(role_name or "Developer", workspace_id)
             if not role:

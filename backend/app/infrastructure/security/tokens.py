@@ -17,12 +17,10 @@ Token payload structure:
     }
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import jwt
 
 from app.config import get_settings
-from app.infrastructure.security.hashing import generate_secure_token
 
 _ACCESS_TOKEN_EXPIRE_MINUTES = 15
 _ALGORITHM = "HS256"
@@ -58,7 +56,7 @@ def create_access_token(user_id: str, session_id: str) -> str:
     return jwt.encode(payload, _get_secret_key(), algorithm=_ALGORITHM)
 
 
-def verify_access_token(token: str) -> Optional[dict]:
+def verify_access_token(token: str) -> dict | None:
     """
     Verify and decode a JWT access token.
 

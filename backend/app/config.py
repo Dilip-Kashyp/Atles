@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,17 +9,20 @@ class Settings(BaseSettings):
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_bot_user_id: str = ""
+    slack_timestamp_tolerance_seconds: int = 300
+    slack_dedup_ttl_seconds: int = 600
+    slack_dedup_fail_mode: str = "open"
     
-    # Database and Caching
+    
     database_url: str = "postgresql+asyncpg://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
     database_sync_url: str = "postgresql://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
     redis_url: str = "redis://localhost:6379/0"
     
-    # Security encryption key (32-byte url-safe base64 key)
+    
     atlas_master_key: str = "super_secret_master_key_change_me_32_bytes!"
     cookie_secure: bool = False
     
-    # OAuth Configurations
+    
     github_client_id: str = ""
     github_client_secret: str = ""
 

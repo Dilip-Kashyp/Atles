@@ -97,8 +97,7 @@ class EntityExtractor:
 
             if raw.startswith("```"):
                 inner = raw.strip("`")
-                if inner.startswith("json"):
-                    inner = inner[4:]
+                inner = inner.removeprefix("json")
                 raw = inner.strip()
 
             try:

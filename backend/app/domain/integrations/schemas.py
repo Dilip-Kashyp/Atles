@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -19,6 +19,6 @@ class IntegrationResponse(BaseModel):
     type: str
     status: str
     created_at: datetime
-    capabilities: List[WorkspaceCapabilityResponse] = []
+    capabilities: list[WorkspaceCapabilityResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

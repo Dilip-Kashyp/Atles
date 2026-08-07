@@ -4,7 +4,6 @@ Workspace Domain Repositories.
 Provides async database access for organizations, org members, workspaces, configuration, policies, RBAC, members, and invitations.
 """
 from datetime import datetime, timezone
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -13,7 +12,6 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.workspace.models import (
     Organization,
-    OrganizationDomain,
     OrganizationMember,
     Permission,
     Role,
@@ -24,13 +22,14 @@ from app.domain.workspace.models import (
     WorkspaceMember,
     WorkspacePolicy,
 )
+from app.infrastructure.database.errors import handle_db_errors
 
 
 class OrganizationRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, org_id: UUID) -> Optional[Organization]:
+    async def get_by_id(self, org_id: UUID) -> Organization | None:
         stmt = (
             select(Organization)
             .filter(Organization.id == org_id, Organization.deleted_at.is_(None))
@@ -39,7 +38,7 @@ class OrganizationRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def get_by_slug(self, slug: str) -> Optional[Organization]:
+    async def get_by_slug(self, slug: str) -> Organization | None:
         stmt = select(Organization).filter(
             Organization.slug == slug.lower().strip(),
             Organization.deleted_at.is_(None),
@@ -47,12 +46,13 @@ class OrganizationRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
+    @handle_db_errors
     async def create(
         self,
         name: str,
         slug: str,
-        logo_url: Optional[str] = None,
-        billing_email: Optional[str] = None,
+        logo_url: str | None = None,
+        billing_email: str | None = None,
     ) -> Organization:
         org = Organization(
             name=name,
@@ -77,7 +77,7 @@ class OrgMemberRepository:
 
     async def get_membership(
         self, org_id: UUID, user_id: UUID
-    ) -> Optional[OrganizationMember]:
+    ) -> OrganizationMember | None:
         stmt = (
             select(OrganizationMember)
             .filter(
@@ -89,7 +89,7 @@ class OrgMemberRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_org(self, org_id: UUID) -> List[OrganizationMember]:
+    async def list_by_org(self, org_id: UUID) -> list[OrganizationMember]:
         stmt = (
             select(OrganizationMember)
             .filter(OrganizationMember.organization_id == org_id)
@@ -128,7 +128,7 @@ class WorkspaceRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, workspace_id: UUID) -> Optional[Workspace]:
+    async def get_by_id(self, workspace_id: UUID) -> Workspace | None:
         stmt = (
             select(Workspace)
             .filter(Workspace.id == workspace_id, Workspace.deleted_at.is_(None))
@@ -141,7 +141,7 @@ class WorkspaceRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def get_by_org_and_slug(self, org_id: UUID, slug: str) -> Optional[Workspace]:
+    async def get_by_org_and_slug(self, org_id: UUID, slug: str) -> Workspace | None:
         stmt = select(Workspace).filter(
             Workspace.org_id == org_id,
             Workspace.slug == slug.lower().strip(),
@@ -150,7 +150,7 @@ class WorkspaceRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_user_id(self, user_id: UUID) -> List[Workspace]:
+    async def list_by_user_id(self, user_id: UUID) -> list[Workspace]:
         stmt = (
             select(Workspace)
             .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
@@ -173,7 +173,7 @@ class WorkspaceRepository:
         org_id: UUID,
         name: str,
         slug: str,
-        icon_url: Optional[str] = None,
+        icon_url: str | None = None,
         is_default: bool = False,
     ) -> Workspace:
         ws = Workspace(
@@ -187,7 +187,7 @@ class WorkspaceRepository:
         self.db.add(ws)
         await self.db.flush()
 
-        # Automatically create default WorkspaceConfiguration & WorkspacePolicy
+        
         config = WorkspaceConfiguration(workspace_id=ws.id)
         policy = WorkspacePolicy(workspace_id=ws.id)
         self.db.add(config)
@@ -196,6 +196,7 @@ class WorkspaceRepository:
 
         return ws
 
+    @handle_db_errors
     async def update(self, workspace: Workspace) -> Workspace:
         workspace.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
@@ -206,7 +207,7 @@ class PolicyRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_workspace(self, workspace_id: UUID) -> Optional[WorkspacePolicy]:
+    async def get_by_workspace(self, workspace_id: UUID) -> WorkspacePolicy | None:
         stmt = select(WorkspacePolicy).filter(WorkspacePolicy.workspace_id == workspace_id)
         res = await self.db.execute(stmt)
         return res.scalars().first()
@@ -214,12 +215,12 @@ class PolicyRepository:
     async def update_policy(
         self,
         workspace_id: UUID,
-        require_mfa: Optional[bool] = None,
-        allow_guests: Optional[bool] = None,
-        allowed_integrations: Optional[List[str]] = None,
-        retention_days: Optional[int] = None,
-        default_ai_provider: Optional[str] = None,
-        api_restrictions: Optional[dict] = None,
+        require_mfa: bool | None = None,
+        allow_guests: bool | None = None,
+        allowed_integrations: list[str] | None = None,
+        retention_days: int | None = None,
+        default_ai_provider: str | None = None,
+        api_restrictions: dict | None = None,
     ) -> WorkspacePolicy:
         policy = await self.get_by_workspace(workspace_id)
         if not policy:
@@ -248,7 +249,7 @@ class RoleRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, role_id: UUID) -> Optional[Role]:
+    async def get_by_id(self, role_id: UUID) -> Role | None:
         stmt = (
             select(Role)
             .filter(Role.id == role_id)
@@ -260,8 +261,8 @@ class RoleRepository:
         return res.scalars().first()
 
     async def get_by_name(
-        self, name: str, workspace_id: Optional[UUID] = None
-    ) -> Optional[Role]:
+        self, name: str, workspace_id: UUID | None = None
+    ) -> Role | None:
         stmt = (
             select(Role)
             .filter(
@@ -275,7 +276,7 @@ class RoleRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_available_for_workspace(self, workspace_id: UUID) -> List[Role]:
+    async def list_available_for_workspace(self, workspace_id: UUID) -> list[Role]:
         stmt = (
             select(Role)
             .filter((Role.workspace_id == workspace_id) | (Role.workspace_id.is_(None)))
@@ -316,7 +317,7 @@ class RoleRepository:
 
         roles_config = {
             "Owner": list(perm_map.keys()),
-            "Admin": [p for p in perm_map.keys() if p != "workspace:delete"],
+            "Admin": [p for p in perm_map if p != "workspace:delete"],
             "Manager": [
                 "workspace:read",
                 "member:read",
@@ -367,7 +368,7 @@ class MemberRepository:
 
     async def get_membership(
         self, workspace_id: UUID, user_id: UUID
-    ) -> Optional[WorkspaceMember]:
+    ) -> WorkspaceMember | None:
         stmt = (
             select(WorkspaceMember)
             .filter(
@@ -383,7 +384,7 @@ class MemberRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_workspace_id(self, workspace_id: UUID) -> List[WorkspaceMember]:
+    async def list_by_workspace_id(self, workspace_id: UUID) -> list[WorkspaceMember]:
         stmt = (
             select(WorkspaceMember)
             .filter(
@@ -428,7 +429,7 @@ class InviteRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_token_hash(self, token_hash: str) -> Optional[WorkspaceInvitation]:
+    async def get_by_token_hash(self, token_hash: str) -> WorkspaceInvitation | None:
         stmt = (
             select(WorkspaceInvitation)
             .filter(WorkspaceInvitation.token_hash == token_hash)

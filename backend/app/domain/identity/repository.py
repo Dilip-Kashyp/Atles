@@ -4,7 +4,6 @@ Identity Domain Repositories.
 Provides async database access methods for identity models.
 """
 from datetime import datetime, timezone
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -19,13 +18,14 @@ from app.domain.identity.models import (
     Session,
     User,
 )
+from app.infrastructure.database.errors import handle_db_errors
 
 
 class UserRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         stmt = (
             select(User)
             .filter(User.id == user_id, User.deleted_at.is_(None))
@@ -34,7 +34,7 @@ class UserRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         normalized_email = email.lower().strip()
         stmt = (
             select(User)
@@ -44,11 +44,12 @@ class UserRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
+    @handle_db_errors
     async def create(
         self,
         email: str,
-        display_name: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        display_name: str | None = None,
+        avatar_url: str | None = None,
         email_verified: bool = False,
         locale: str = "en",
         timezone_str: str = "UTC",
@@ -66,6 +67,7 @@ class UserRepository:
         await self.db.flush()
         return user
 
+    @handle_db_errors
     async def update(self, user: User) -> User:
         user.updated_at = datetime.now(timezone.utc)
         await self.db.flush()
@@ -86,7 +88,7 @@ class OAuthAccountRepository:
 
     async def get_by_provider_and_id(
         self, provider: str, provider_user_id: str
-    ) -> Optional[OAuthAccount]:
+    ) -> OAuthAccount | None:
         stmt = (
             select(OAuthAccount)
             .filter(
@@ -98,24 +100,25 @@ class OAuthAccountRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_user_id(self, user_id: UUID) -> List[OAuthAccount]:
+    async def list_by_user_id(self, user_id: UUID) -> list[OAuthAccount]:
         stmt = select(OAuthAccount).filter(OAuthAccount.user_id == user_id)
         res = await self.db.execute(stmt)
         return list(res.scalars().all())
 
+    @handle_db_errors
     async def create(
         self,
         user_id: UUID,
         provider: str,
         provider_user_id: str,
-        provider_email: Optional[str] = None,
-        provider_username: Optional[str] = None,
-        provider_avatar: Optional[str] = None,
-        scopes: Optional[List[str]] = None,
-        encrypted_access_token: Optional[str] = None,
-        encrypted_refresh_token: Optional[str] = None,
-        token_expires_at: Optional[datetime] = None,
-        raw_profile: Optional[dict] = None,
+        provider_email: str | None = None,
+        provider_username: str | None = None,
+        provider_avatar: str | None = None,
+        scopes: list[str] | None = None,
+        encrypted_access_token: str | None = None,
+        encrypted_refresh_token: str | None = None,
+        token_expires_at: datetime | None = None,
+        raw_profile: dict | None = None,
     ) -> OAuthAccount:
         account = OAuthAccount(
             user_id=user_id,
@@ -149,17 +152,18 @@ class SessionRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, session_id: UUID) -> Optional[Session]:
+    async def get_by_id(self, session_id: UUID) -> Session | None:
         stmt = select(Session).filter(Session.id == session_id)
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
+    @handle_db_errors
     async def create(
         self,
         user_id: UUID,
         expires_at: datetime,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> Session:
         session = Session(
             user_id=user_id,
@@ -203,7 +207,7 @@ class RefreshTokenRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_hash(self, token_hash: str) -> Optional[RefreshToken]:
+    async def get_by_hash(self, token_hash: str) -> RefreshToken | None:
         stmt = select(RefreshToken).filter(RefreshToken.token_hash == token_hash)
         res = await self.db.execute(stmt)
         return res.scalars().first()
@@ -225,7 +229,7 @@ class RefreshTokenRepository:
         await self.db.flush()
         return token
 
-    async def mark_used(self, token_id: UUID, replaced_by_id: Optional[UUID] = None) -> None:
+    async def mark_used(self, token_id: UUID, replaced_by_id: UUID | None = None) -> None:
         stmt = (
             update(RefreshToken)
             .where(RefreshToken.id == token_id)
@@ -238,7 +242,7 @@ class ServiceAccountRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, service_account_id: UUID) -> Optional[ServiceAccount]:
+    async def get_by_id(self, service_account_id: UUID) -> ServiceAccount | None:
         stmt = (
             select(ServiceAccount)
             .filter(ServiceAccount.id == service_account_id)
@@ -247,7 +251,7 @@ class ServiceAccountRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_workspace(self, workspace_id: UUID) -> List[ServiceAccount]:
+    async def list_by_workspace(self, workspace_id: UUID) -> list[ServiceAccount]:
         stmt = (
             select(ServiceAccount)
             .filter(ServiceAccount.workspace_id == workspace_id)
@@ -256,13 +260,14 @@ class ServiceAccountRepository:
         res = await self.db.execute(stmt)
         return list(res.scalars().all())
 
+    @handle_db_errors
     async def create(
         self,
         workspace_id: UUID,
         name: str,
         role_id: UUID,
-        description: Optional[str] = None,
-        created_by_user_id: Optional[UUID] = None,
+        description: str | None = None,
+        created_by_user_id: UUID | None = None,
     ) -> ServiceAccount:
         sa = ServiceAccount(
             workspace_id=workspace_id,
@@ -289,7 +294,7 @@ class ApiKeyRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_hash(self, key_hash: str) -> Optional[ApiKey]:
+    async def get_by_hash(self, key_hash: str) -> ApiKey | None:
         stmt = (
             select(ApiKey)
             .filter(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
@@ -298,24 +303,25 @@ class ApiKeyRepository:
         res = await self.db.execute(stmt)
         return res.scalars().first()
 
-    async def list_by_workspace(self, workspace_id: UUID) -> List[ApiKey]:
+    async def list_by_workspace(self, workspace_id: UUID) -> list[ApiKey]:
         stmt = select(ApiKey).filter(
             ApiKey.workspace_id == workspace_id, ApiKey.is_active.is_(True)
         )
         res = await self.db.execute(stmt)
         return list(res.scalars().all())
 
+    @handle_db_errors
     async def create(
         self,
         workspace_id: UUID,
         name: str,
         key_prefix: str,
         key_hash: str,
-        user_id: Optional[UUID] = None,
-        service_account_id: Optional[UUID] = None,
-        description: Optional[str] = None,
-        scopes: Optional[List[str]] = None,
-        expires_at: Optional[datetime] = None,
+        user_id: UUID | None = None,
+        service_account_id: UUID | None = None,
+        description: str | None = None,
+        scopes: list[str] | None = None,
+        expires_at: datetime | None = None,
     ) -> ApiKey:
         api_key = ApiKey(
             workspace_id=workspace_id,
@@ -333,7 +339,7 @@ class ApiKeyRepository:
         await self.db.flush()
         return api_key
 
-    async def revoke(self, key_id: UUID, revoked_by_user_id: Optional[UUID]) -> None:
+    async def revoke(self, key_id: UUID, revoked_by_user_id: UUID | None) -> None:
         now = datetime.now(timezone.utc)
         stmt = (
             update(ApiKey)

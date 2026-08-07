@@ -1,18 +1,18 @@
 """Identity domain package."""
 from app.domain.identity.models import (
-    User,
+    ApiKey,
     OAuthAccount,
-    Session,
     RefreshToken,
     ServiceAccount,
-    ApiKey,
+    Session,
+    User,
 )
 
 __all__ = [
-    "User",
+    "ApiKey",
     "OAuthAccount",
-    "Session",
     "RefreshToken",
     "ServiceAccount",
-    "ApiKey",
+    "Session",
+    "User",
 ]

@@ -6,7 +6,6 @@ Provides:
 - CurrentWorkspaceContext: Resolved workspace context for tenant-scoped operations.
 """
 from dataclasses import dataclass, field
-from typing import Optional, Set
 from uuid import UUID, uuid4
 
 from app.domain.identity.models import ApiKey, ServiceAccount, Session, User
@@ -27,17 +26,17 @@ class CurrentIdentity:
     """
     request_id: str = field(default_factory=lambda: str(uuid4()))
     correlation_id: str = field(default_factory=lambda: str(uuid4()))
-    auth_type: str = "anonymous"  # 'jwt' | 'api_key_user' | 'api_key_service_account' | 'anonymous'
+    auth_type: str = "anonymous"  
 
-    user: Optional[User] = None
-    service_account: Optional[ServiceAccount] = None
-    session: Optional[Session] = None
-    api_key: Optional[ApiKey] = None
+    user: User | None = None
+    service_account: ServiceAccount | None = None
+    session: Session | None = None
+    api_key: ApiKey | None = None
 
-    organization: Optional[Organization] = None
-    workspace: Optional[Workspace] = None
-    membership: Optional[WorkspaceMember] = None
-    permissions: Set[str] = field(default_factory=set)
+    organization: Organization | None = None
+    workspace: Workspace | None = None
+    membership: WorkspaceMember | None = None
+    permissions: set[str] = field(default_factory=set)
 
     @property
     def is_authenticated(self) -> bool:
@@ -48,7 +47,7 @@ class CurrentIdentity:
         return self.service_account is not None
 
     @property
-    def actor_id(self) -> Optional[UUID]:
+    def actor_id(self) -> UUID | None:
         if self.user:
             return self.user.id
         if self.service_account:
@@ -72,4 +71,4 @@ class CurrentWorkspaceContext:
     workspace: Workspace
     configuration: WorkspaceConfiguration
     policy: WorkspacePolicy
-    permissions: Set[str] = field(default_factory=set)
+    permissions: set[str] = field(default_factory=set)

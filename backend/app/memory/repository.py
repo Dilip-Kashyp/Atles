@@ -6,7 +6,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from app.memory.models import Memory, SessionContext, SlackThreadMeta, WorkingState
+from app.memory.models import Memory, SessionContext, SlackThreadMeta
 
 log = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 """
 Audit Domain Repository.
 """
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,14 +18,14 @@ class AuditEventRepository:
         event_type: str,
         resource_type: str,
         actor_type: str = "user",
-        actor_id: Optional[UUID] = None,
-        workspace_id: Optional[UUID] = None,
-        organization_id: Optional[UUID] = None,
-        resource_id: Optional[UUID] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        payload: Optional[dict] = None,
-        correlation_id: Optional[str] = None,
+        actor_id: UUID | None = None,
+        workspace_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        resource_id: UUID | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        payload: dict | None = None,
+        correlation_id: str | None = None,
     ) -> AuditEvent:
         event = AuditEvent(
             event_type=event_type,
@@ -47,7 +46,7 @@ class AuditEventRepository:
 
     async def list_by_workspace(
         self, workspace_id: UUID, limit: int = 50
-    ) -> List[AuditEvent]:
+    ) -> list[AuditEvent]:
         stmt = (
             select(AuditEvent)
             .filter(AuditEvent.workspace_id == workspace_id)

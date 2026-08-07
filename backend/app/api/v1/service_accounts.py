@@ -1,7 +1,6 @@
 """
 API v1 Service Accounts Endpoints.
 """
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,7 +16,7 @@ from app.domain.workspace.services import RBACService, ServiceAccountService
 router = APIRouter(prefix="/workspaces/{workspace_id}/service-accounts", tags=["service-accounts"])
 
 
-@router.get("", response_model=List[ServiceAccountResponse])
+@router.get("", response_model=list[ServiceAccountResponse])
 async def list_service_accounts(
     workspace_id: UUID,
     current_user=Depends(get_current_user),

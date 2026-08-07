@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from app.memory.cache import RuntimeCache
 from app.memory.extractor import EntityExtractor
@@ -20,7 +20,6 @@ from app.memory.models import (
     PromptContext,
     SessionContext,
     SlackThreadMeta,
-    WorkingState,
 )
 from app.memory.prompt_context import PromptContextBuilder
 from app.memory.repository import MemoryRepository
@@ -302,20 +301,6 @@ class MemoryManager:
         asyncio.create_task(
             self._async_persist_turn(session_key, user_message, assistant_response)
         )
-
-    async def fetch_slack_thread(self, channel: str, thread_ts: str) -> str:
-        if self._slack_read is None:
-            log.warning("[CHECKPOINT: MEMORY_SLACK_FALLBACK_SKIP] No Slack read fn injected")
-            return ""
-
-        log.info(
-            "[CHECKPOINT: MEMORY_SLACK_FALLBACK] channel=%s ts=%s", channel, thread_ts
-        )
-        try:
-            return await self._slack_read(channel, thread_ts)
-        except Exception as exc:
-            log.warning("[CHECKPOINT: MEMORY_SLACK_FALLBACK_ERR] %s", exc)
-            return ""
 
     async def _resolve_session(self, ctx: SessionContext) -> SessionContext:
         cached = self._cache.get_session(ctx.session_key)

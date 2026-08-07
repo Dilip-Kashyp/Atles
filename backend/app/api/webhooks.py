@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import APIRouter, Depends, Request, Response
 
 from app.dependencies import get_slack_platform

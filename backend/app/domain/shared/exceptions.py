@@ -23,11 +23,10 @@ class AtlasError(Exception):
         return f"{self.__class__.__name__}(code={self.code!r}, message={self.message!r})"
 
 
-# ─── Not Found ────────────────────────────────────────────────────────────────
+
 
 class NotFoundError(AtlasError):
     """Raised when a requested resource does not exist or has been soft-deleted."""
-    pass
 
 
 class UserNotFoundError(NotFoundError):
@@ -50,11 +49,10 @@ class SessionNotFoundError(NotFoundError):
     pass
 
 
-# ─── Authentication ────────────────────────────────────────────────────────────
+
 
 class AuthenticationError(AtlasError):
     """Raised when authentication fails (invalid credentials, expired token, etc.)."""
-    pass
 
 
 class InvalidTokenError(AuthenticationError):
@@ -70,19 +68,16 @@ class TokenReuseDetectedError(AuthenticationError):
     Raised when a refresh token is presented after it has already been used.
     This is a strong signal of token theft. All user sessions should be revoked.
     """
-    pass
 
 
 class OAuthError(AuthenticationError):
     """Raised for errors in the OAuth exchange or state validation."""
-    pass
 
 
-# ─── Authorization ─────────────────────────────────────────────────────────────
+
 
 class AuthorizationError(AtlasError):
     """Raised when an authenticated user lacks permission to perform an action."""
-    pass
 
 
 class InsufficientPermissionsError(AuthorizationError):
@@ -99,11 +94,10 @@ class WorkspaceMembershipRequiredError(AuthorizationError):
     pass
 
 
-# ─── Conflict ─────────────────────────────────────────────────────────────────
+
 
 class ConflictError(AtlasError):
     """Raised when an operation would violate a uniqueness constraint."""
-    pass
 
 
 class DuplicateEmailError(ConflictError):
@@ -120,14 +114,12 @@ class AlreadyMemberError(ConflictError):
 
 class AccountAlreadyLinkedError(ConflictError):
     """Raised when attempting to link an OAuth account already linked to another user."""
-    pass
 
 
-# ─── Validation ───────────────────────────────────────────────────────────────
+
 
 class ValidationError(AtlasError):
     """Raised for invalid input that does not fit business rules."""
-    pass
 
 
 class InvitationExpiredError(ValidationError):
@@ -138,12 +130,13 @@ class InvitationAlreadyAcceptedError(ValidationError):
     pass
 
 
-class InvitationRevokedError(ValidationError):
-    pass
 
-
-# ─── Rate Limiting ────────────────────────────────────────────────────────────
 
 class RateLimitExceededError(AtlasError):
     """Raised when a rate limit has been exceeded."""
-    pass
+
+
+
+
+class DeduplicationUnavailableError(AtlasError):
+    """Raised when the deduplication layer (e.g., Redis) is unreachable and fail mode is closed."""

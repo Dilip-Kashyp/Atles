@@ -1,8 +1,10 @@
 """
 Google Login Provider Implementation.
 """
-from typing import Any, Dict, Optional
+from typing import Any
+
 import httpx
+
 from app.config import get_settings
 from app.domain.identity.providers.base import BaseLoginProvider
 
@@ -13,7 +15,7 @@ class GoogleLoginProvider(BaseLoginProvider):
         return "google"
 
     def get_authorization_url(
-        self, state: str, redirect_uri: str, pkce_challenge: Optional[str] = None
+        self, state: str, redirect_uri: str, pkce_challenge: str | None = None
     ) -> str:
         settings = get_settings()
         client_id = settings.google_client_id
@@ -28,8 +30,8 @@ class GoogleLoginProvider(BaseLoginProvider):
         return url
 
     async def exchange_code(
-        self, code: str, redirect_uri: str, pkce_verifier: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, code: str, redirect_uri: str, pkce_verifier: str | None = None
+    ) -> dict[str, Any]:
         settings = get_settings()
         async with httpx.AsyncClient() as client:
             data = {
@@ -49,7 +51,7 @@ class GoogleLoginProvider(BaseLoginProvider):
             token_data = resp.json()
             access_token = token_data.get("access_token")
 
-            # Fetch Userinfo profile
+            
             userinfo_resp = await client.get(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},

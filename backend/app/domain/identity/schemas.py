@@ -2,7 +2,7 @@
 Identity Domain Pydantic Schemas.
 """
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -10,8 +10,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class UserBase(BaseModel):
     email: EmailStr
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
     locale: str = "en"
     timezone: str = "UTC"
 
@@ -22,17 +22,17 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    locale: Optional[str] = None
-    timezone: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    locale: str | None = None
+    timezone: str | None = None
 
 
 class UserResponse(UserBase):
     id: UUID
     email_verified: bool
     status: str
-    metadata_: Dict[str, Any] = Field(default_factory=dict, alias="metadata_")
+    metadata_: dict[str, Any] = Field(default_factory=dict, alias="metadata_")
     created_at: datetime
     updated_at: datetime
 
@@ -43,10 +43,10 @@ class OAuthAccountResponse(BaseModel):
     id: UUID
     provider: str
     provider_user_id: str
-    provider_email: Optional[str] = None
-    provider_username: Optional[str] = None
-    provider_avatar: Optional[str] = None
-    scopes: List[str]
+    provider_email: str | None = None
+    provider_username: str | None = None
+    provider_avatar: str | None = None
+    scopes: list[str]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -56,8 +56,8 @@ class SessionResponse(BaseModel):
     id: UUID
     user_id: UUID
     token_family: UUID
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
     last_active_at: datetime
     expires_at: datetime
     is_active: bool
@@ -69,16 +69,16 @@ class SessionResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    expires_in: int = 900  # 15 minutes
+    expires_in: int = 900  
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
 
 
 class ServiceAccountCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     role_name: str = "Developer"
 
 
@@ -86,7 +86,7 @@ class ServiceAccountResponse(BaseModel):
     id: UUID
     workspace_id: UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     role_id: UUID
     status: str
     created_at: datetime
@@ -96,23 +96,23 @@ class ServiceAccountResponse(BaseModel):
 
 class ApiKeyCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    service_account_id: Optional[UUID] = None
-    scopes: List[str] = Field(default_factory=list)
-    expires_at: Optional[datetime] = None
+    description: str | None = None
+    service_account_id: UUID | None = None
+    scopes: list[str] = Field(default_factory=list)
+    expires_at: datetime | None = None
 
 
 class ApiKeyResponse(BaseModel):
     id: UUID
     workspace_id: UUID
-    user_id: Optional[UUID] = None
-    service_account_id: Optional[UUID] = None
+    user_id: UUID | None = None
+    service_account_id: UUID | None = None
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     key_prefix: str
-    scopes: List[str]
-    last_used_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    scopes: list[str]
+    last_used_at: datetime | None = None
+    expires_at: datetime | None = None
     is_active: bool
     created_at: datetime
 
@@ -120,7 +120,7 @@ class ApiKeyResponse(BaseModel):
 
 
 class ApiKeyCreateResponse(ApiKeyResponse):
-    raw_key: str  # Displayed ONCE at creation
+    raw_key: str  
 
 
 class AccountMergeRequest(BaseModel):
@@ -131,6 +131,6 @@ class CurrentIdentityResponse(BaseModel):
     auth_type: str
     request_id: str
     correlation_id: str
-    user: Optional[UserResponse] = None
-    service_account: Optional[ServiceAccountResponse] = None
-    permissions: List[str] = Field(default_factory=list)
+    user: UserResponse | None = None
+    service_account: ServiceAccountResponse | None = None
+    permissions: list[str] = Field(default_factory=list)

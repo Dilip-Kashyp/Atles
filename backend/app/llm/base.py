@@ -4,11 +4,11 @@ from typing import Any
 
 class LLMClient(abc.ABC):
     @abc.abstractmethod
-    def send_message(self, user_message: str) -> Any:
+    async def send_message(self, user_message: str) -> Any:
         pass
 
     @abc.abstractmethod
-    def send_tool_result(self, original_message: str, tool_call_context: Any, tool_result: str) -> Any:
+    async def send_tool_result(self, original_message: str, tool_call_context: Any, tool_result: str) -> Any:
         pass
 
     @abc.abstractmethod

@@ -42,7 +42,7 @@ class GeminiClient(LLMClient):
             self._gemini_tools = [types.Tool(function_declarations=declarations)]
             log.info("[CHECKPOINT: LLM_INIT] Registered %d tool(s): %s", len(declarations), [d.name for d in declarations])
 
-    def send_message(self, user_message: str) -> types.GenerateContentResponse:
+    async def send_message(self, user_message: str) -> types.GenerateContentResponse:
         log.info("[CHECKPOINT: LLM_SEND_MESSAGE] Prompting Gemini (%d chars)", len(user_message))
         tool_config = (
             types.ToolConfig(
@@ -57,7 +57,12 @@ class GeminiClient(LLMClient):
             tool_config=tool_config,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
-        response = self._client.models.generate_content(
+        
+        
+        
+        import asyncio
+        response = await asyncio.to_thread(
+            self._client.models.generate_content,
             model=self._model_name,
             contents=user_message,
             config=config,
@@ -65,7 +70,7 @@ class GeminiClient(LLMClient):
         self._log_response(response)
         return response
 
-    def send_tool_result(
+    async def send_tool_result(
         self,
         original_message: str,
         tool_call_context: Any,
@@ -103,7 +108,12 @@ class GeminiClient(LLMClient):
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
-        response = self._client.models.generate_content(
+        
+        
+        
+        import asyncio
+        response = await asyncio.to_thread(
+            self._client.models.generate_content,
             model=self._model_name,
             contents=contents,
             config=config,

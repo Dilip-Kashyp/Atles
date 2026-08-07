@@ -1,13 +1,13 @@
 """
 Audit Domain Service & Event Subscriber.
 """
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.audit.repository import AuditEventRepository
-from app.domain.shared.events import AuditEvent as DomainAuditEvent, event_bus
+from app.domain.shared.events import AuditEvent as DomainAuditEvent
 
 
 class AuditService:
@@ -20,14 +20,14 @@ class AuditService:
         event_type: str,
         resource_type: str,
         actor_type: str = "user",
-        actor_id: Optional[UUID] = None,
-        workspace_id: Optional[UUID] = None,
-        organization_id: Optional[UUID] = None,
-        resource_id: Optional[UUID] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        payload: Optional[Dict[str, Any]] = None,
-        correlation_id: Optional[str] = None,
+        actor_id: UUID | None = None,
+        workspace_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        resource_id: UUID | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        payload: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
     ) -> None:
         await self.repo.log_event(
             event_type=event_type,

@@ -9,7 +9,7 @@ Provides:
 - require_permission: Dependency factory for RBAC permission checks
 - require_role: Dependency factory for RBAC role checks
 """
-from typing import Callable, Optional
+from collections.abc import Callable
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -19,8 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.context import CurrentIdentity, CurrentWorkspaceContext
 from app.database.session import get_db
 from app.domain.identity.models import User
-from app.domain.identity.repository import ApiKeyRepository, ServiceAccountRepository, UserRepository
-from app.domain.shared.exceptions import InsufficientPermissionsError, WorkspaceMembershipRequiredError
+from app.domain.identity.repository import (
+    ApiKeyRepository,
+    ServiceAccountRepository,
+    UserRepository,
+)
 from app.domain.workspace.models import Workspace
 from app.domain.workspace.services import PolicyService, RBACService, WorkspaceService
 from app.infrastructure.security import hashing, tokens
@@ -28,120 +31,126 @@ from app.infrastructure.security import hashing, tokens
 security = HTTPBearer(auto_error=False)
 
 
-async def get_current_identity(
+async def _get_jwt_identity(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-    x_workspace_id: Optional[str] = Header(None, alias="X-Workspace-ID"),
-    db: AsyncSession = Depends(get_db),
-) -> CurrentIdentity:
-    """
-    Resolve WHO or WHAT is executing this request once per request.
-    Handles Bearer JWT, User API Keys, and Service Account API Keys.
-    """
-    request_id = request.headers.get("X-Request-ID") or tokens.generate_secure_token(16)
-    correlation_id = request.headers.get("X-Correlation-ID") or request_id
-
-    identity = CurrentIdentity(
-        request_id=request_id,
-        correlation_id=correlation_id,
-    )
-
-    # 1. Bearer JWT Access Token (Human User) or Query Parameter (for redirects)
+    db: AsyncSession,
+    credentials: HTTPAuthorizationCredentials | None,
+) -> CurrentIdentity | None:
     token_str = None
     if credentials and credentials.credentials:
         token_str = credentials.credentials
     elif request.query_params.get("token"):
         token_str = request.query_params.get("token")
+        
+    if not token_str:
+        return None
 
-    if token_str:
-        payload = tokens.verify_access_token(token_str)
-        if not payload or not payload.get("sub"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired access token.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    payload = tokens.verify_access_token(token_str)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(UUID(payload["sub"]))
+    if not user or user.status != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is inactive")
+        
+    identity = CurrentIdentity(
+        request_id=request.headers.get("X-Request-ID") or tokens.generate_secure_token(16),
+        correlation_id=request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID"),
+    )
+    identity.user = user
+    identity.auth_type = "jwt"
+    return identity
 
+async def _get_api_key_identity(
+    request: Request,
+    db: AsyncSession,
+    x_api_key: str,
+) -> CurrentIdentity | None:
+    api_key_repo = ApiKeyRepository(db)
+    key_hash = hashing.hash_token(x_api_key)
+    api_key_record = await api_key_repo.get_by_hash(key_hash)
+
+    if not api_key_record or not api_key_record.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+
+    identity = CurrentIdentity(
+        request_id=request.headers.get("X-Request-ID") or tokens.generate_secure_token(16),
+        correlation_id=request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID"),
+    )
+    identity.api_key = api_key_record
+
+    if api_key_record.service_account_id:
+        sa_repo = ServiceAccountRepository(db)
+        sa = await sa_repo.get_by_id(api_key_record.service_account_id)
+        if not sa or sa.status != "active":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Service account is disabled")
+        identity.service_account = sa
+        identity.auth_type = "api_key_service_account"
+    elif api_key_record.user_id:
         user_repo = UserRepository(db)
-        user = await user_repo.get_by_id(UUID(payload["sub"]))
+        user = await user_repo.get_by_id(api_key_record.user_id)
         if not user or user.status != "active":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User account is inactive or disabled.",
-            )
-
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key owner is inactive")
         identity.user = user
-        identity.auth_type = "jwt"
+        identity.auth_type = "api_key_user"
+    return identity
 
-    # 2. X-API-Key Header (User or Service Account)
-    elif x_api_key:
-        api_key_repo = ApiKeyRepository(db)
-        key_hash = hashing.hash_token(x_api_key)
-        api_key_record = await api_key_repo.get_by_hash(key_hash)
 
-        if not api_key_record or not api_key_record.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or inactive API key.",
-            )
-
-        identity.api_key = api_key_record
-
-        if api_key_record.service_account_id:
-            sa_repo = ServiceAccountRepository(db)
-            sa = await sa_repo.get_by_id(api_key_record.service_account_id)
-            if not sa or sa.status != "active":
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Associated service account is disabled.",
-                )
-            identity.service_account = sa
-            identity.auth_type = "api_key_service_account"
-        elif api_key_record.user_id:
-            user_repo = UserRepository(db)
-            user = await user_repo.get_by_id(api_key_record.user_id)
-            if not user or user.status != "active":
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Associated API key owner account is inactive.",
-                )
-            identity.user = user
-            identity.auth_type = "api_key_user"
-
-    else:
+async def get_current_identity(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    x_workspace_id: str | None = Header(None, alias="X-Workspace-ID"),
+    db: AsyncSession = Depends(get_db),
+) -> CurrentIdentity:
+    identity = None
+    if x_api_key:
+        identity = await _get_api_key_identity(request, db, x_api_key)
+    if not identity:
+        identity = await _get_jwt_identity(request, db, credentials)
+        
+    if not identity:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate authentication credentials.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    
+    if not identity.request_id:
+        identity.request_id = request.headers.get("X-Request-ID") or tokens.generate_secure_token(16)
+        identity.correlation_id = request.headers.get("X-Correlation-ID") or identity.request_id
 
-    # Resolve Workspace & Permissions if X-Workspace-ID or path parameter supplied
     workspace_id_str = x_workspace_id or request.path_params.get("workspace_id")
     if workspace_id_str:
         try:
             ws_id = UUID(workspace_id_str)
-            ws_service = WorkspaceService(db)
-            rbac_service = RBACService(db)
-            workspace = await ws_service.get_workspace_by_id(ws_id)
-            identity.workspace = workspace
-            identity.organization = workspace.organization
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid workspace ID format.")
+            
+        ws_service = WorkspaceService(db)
+        rbac_service = RBACService(db)
+        workspace = await ws_service.get_workspace_by_id(ws_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found.")
+            
+        identity.workspace = workspace
+        identity.organization = workspace.organization
 
-            if identity.user:
-                identity.membership = await rbac_service.member_repo.get_membership(
-                    ws_id, identity.user.id
-                )
-                identity.permissions = await rbac_service.get_user_permissions(
-                    ws_id, identity.user.id
-                )
-            elif identity.service_account and identity.service_account.role:
-                perms = set()
-                for rp in identity.service_account.role.role_permissions:
-                    if rp.permission:
-                        perms.add(rp.permission.name)
-                identity.permissions = perms
-        except (ValueError, Exception):
-            pass
+        if identity.user:
+            identity.membership = await rbac_service.member_repo.get_membership(
+                ws_id, identity.user.id
+            )
+            identity.permissions = await rbac_service.get_user_permissions(
+                ws_id, identity.user.id
+            )
+        elif identity.service_account and identity.service_account.role:
+            perms = set()
+            for rp in identity.service_account.role.role_permissions:
+                if rp.permission:
+                    perms.add(rp.permission.name)
+            identity.permissions = perms
 
     return identity
 

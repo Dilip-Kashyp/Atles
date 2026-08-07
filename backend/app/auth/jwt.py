@@ -1,6 +1,7 @@
-import jwt
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+
+import jwt
+
 from app.config import get_settings
 
 settings = get_settings()
@@ -25,7 +26,7 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_token(token: str, expected_type: str = "access") -> Optional[str]:
+def verify_token(token: str, expected_type: str = "access") -> str | None:
     """Verify a token and return the user ID (subject) if valid."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

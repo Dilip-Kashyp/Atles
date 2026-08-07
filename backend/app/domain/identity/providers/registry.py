@@ -3,13 +3,13 @@ LoginProviderRegistry.
 
 Registry singleton for managing login assertion providers.
 """
-from typing import Dict
+
 from app.domain.identity.providers.base import BaseLoginProvider
 
 
 class LoginProviderRegistry:
     def __init__(self) -> None:
-        self._providers: Dict[str, BaseLoginProvider] = {}
+        self._providers: dict[str, BaseLoginProvider] = {}
 
     def register(self, provider: BaseLoginProvider) -> None:
         self._providers[provider.provider_name.lower()] = provider
@@ -24,5 +24,5 @@ class LoginProviderRegistry:
         return name.lower() in self._providers
 
 
-# Global singleton login provider registry
+
 login_provider_registry = LoginProviderRegistry()

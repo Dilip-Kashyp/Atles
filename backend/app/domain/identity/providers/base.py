@@ -4,7 +4,7 @@ BaseLoginProvider Abstract Interface.
 Defines standard login provider capabilities separate from data integrations.
 """
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class BaseLoginProvider(ABC):
@@ -16,19 +16,17 @@ class BaseLoginProvider(ABC):
     @abstractmethod
     def provider_name(self) -> str:
         """Unique provider identifier (e.g. 'google', 'github', 'okta')."""
-        pass
 
     @abstractmethod
     def get_authorization_url(
-        self, state: str, redirect_uri: str, pkce_challenge: Optional[str] = None
+        self, state: str, redirect_uri: str, pkce_challenge: str | None = None
     ) -> str:
         """Return the external authorization redirect URL."""
-        pass
 
     @abstractmethod
     async def exchange_code(
-        self, code: str, redirect_uri: str, pkce_verifier: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, code: str, redirect_uri: str, pkce_verifier: str | None = None
+    ) -> dict[str, Any]:
         """
         Exchange authorization code for tokens and standardized profile dictionary.
 
@@ -46,4 +44,3 @@ class BaseLoginProvider(ABC):
             "raw_profile": Dict[str, Any]
         }
         """
-        pass

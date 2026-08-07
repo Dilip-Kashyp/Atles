@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, LargeBinary, DateTime, ForeignKey
+
+from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+
 from app.models.base import Base
 
 
@@ -11,11 +13,11 @@ class Integration(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    provider_type = Column(String, nullable=False)  # 'github', 'jira', 'notion'
-    provider_variant = Column(String, nullable=False)  # 'github_cloud', 'github_enterprise', 'jira_cloud'
-    provider_workspace_id = Column(String, nullable=True, index=True) # e.g. Slack Team ID
-    type = Column(String, nullable=False, default="WORKSPACE")  # 'WORKSPACE', 'PERSONAL'
-    status = Column(String, nullable=False, default="CONNECTED")  # 'CONNECTED', 'DISCONNECTED'
+    provider_type = Column(String, nullable=False)  
+    provider_variant = Column(String, nullable=False)  
+    provider_workspace_id = Column(String, nullable=True, index=True) 
+    type = Column(String, nullable=False, default="WORKSPACE")  
+    status = Column(String, nullable=False, default="CONNECTED")  
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     workspace = relationship("Workspace", back_populates="integrations")
@@ -43,7 +45,7 @@ class WorkspaceCapability(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    capability = Column(String, nullable=False)  # 'create_issue', 'documentation', etc.
+    capability = Column(String, nullable=False)  
     integration_id = Column(UUID(as_uuid=True), ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

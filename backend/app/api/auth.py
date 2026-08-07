@@ -1,18 +1,16 @@
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie
+
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
+from app.auth.jwt import create_access_token, verify_token
+from app.auth.oauth_registry import oauth_registry
 from app.config import get_settings
 from app.database.session import get_db
-from app.auth.jwt import create_access_token, create_refresh_token, verify_token
-from app.auth.oauth_registry import oauth_registry
-from app.utils.redis import redis_client
-
 from app.domain.identity.services import IdentityService, SessionService
 from app.domain.workspace.services import WorkspaceService
-from app.models.tenancy import User, Organization, Workspace, Membership
+from app.utils.redis import redis_client
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -42,7 +40,7 @@ async def login(provider: str, redirect_uri: str = None):
         raise HTTPException(status_code=400, detail=f"Unsupported login provider: {provider}")
 
     state = secrets.token_urlsafe(32)
-    # Store state in Redis for 10 minutes to verify on callback
+    
     await redis_client.setex(f"oauth_state:{state}", 600, provider)
 
     resolved_redirect_uri = resolve_redirect_uri(provider, redirect_uri)
@@ -60,7 +58,7 @@ async def callback(
     db: AsyncSession = Depends(get_db),
 ):
     """Handle OAuth redirect callback and authenticate the user."""
-    # Verify OAuth state
+    
     state_key = f"oauth_state:{state}"
     saved_provider = await redis_client.get(state_key)
     if not saved_provider or saved_provider != provider:
@@ -74,7 +72,7 @@ async def callback(
 
     resolved_redirect_uri = resolve_redirect_uri(provider, redirect_uri)
 
-    # Exchange authorization code for tokens and profile
+    
     token_payload = await provider_impl.exchange_code(code, resolved_redirect_uri)
     user_info = token_payload.get("user_info", {})
     email = user_info.get("email")
@@ -97,10 +95,10 @@ async def callback(
     if is_new:
         await workspace_service.provision_personal_workspace(user)
 
-    # Generate Auth tokens & Session
+    
     session, access_token, raw_refresh = await session_service.create_session(user_id=user.id)
 
-    # Set refresh token as secure cookie
+    
     response.set_cookie(
         key="refresh_token",
         value=raw_refresh,

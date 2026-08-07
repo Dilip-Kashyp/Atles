@@ -18,7 +18,7 @@ class AuditEvent(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_type = Column(String(100), nullable=False)
-    actor_type = Column(String(30), nullable=False, default="user")  # 'user' | 'service_account' | 'system' | 'api_key'
+    actor_type = Column(String(30), nullable=False, default="user")  
     actor_id = Column(UUID(as_uuid=True), nullable=True)
     workspace_id = Column(UUID(as_uuid=True), nullable=True)
     organization_id = Column(UUID(as_uuid=True), nullable=True)

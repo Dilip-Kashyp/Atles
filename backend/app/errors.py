@@ -1,7 +1,10 @@
 import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.requests import ClientDisconnect
+
+from app.domain.shared.exceptions import DeduplicationUnavailableError
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +33,11 @@ def register_error_handlers(app: FastAPI) -> None:
     async def runtime_error_handler(request: Request, exc: RuntimeError) -> JSONResponse:
         log.error("[CHECKPOINT: ERROR 502] Upstream error: %s", exc)
         return JSONResponse(status_code=502, content={"detail": f"Upstream error: {exc}"})
+
+    @app.exception_handler(DeduplicationUnavailableError)
+    async def deduplication_unavailable_handler(request: Request, exc: DeduplicationUnavailableError) -> JSONResponse:
+        log.error("[CHECKPOINT: ERROR 503] Deduplication service unreachable: %s", exc)
+        return JSONResponse(status_code=503, content={"detail": "Deduplication service is currently unavailable."})
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:

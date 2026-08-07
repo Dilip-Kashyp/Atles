@@ -46,10 +46,10 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     slug = Column(String(100), nullable=False)
     logo_url = Column(Text, nullable=True)
     billing_email = Column(String(320), nullable=True)
-    status = Column(String(20), nullable=False, default="active")  # 'active' | 'suspended'
+    status = Column(String(20), nullable=False, default="active")  
     metadata_ = Column("metadata", JSONB, nullable=False, default=dict)
 
-    # Relationships
+    
     workspaces = relationship(
         "Workspace", back_populates="organization", cascade="all, delete-orphan"
     )
@@ -126,7 +126,7 @@ class OrganizationMember(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role = Column(String(20), nullable=False, default="MEMBER")  # 'OWNER' | 'ADMIN' | 'MEMBER'
+    role = Column(String(20), nullable=False, default="MEMBER")  
     joined_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -163,10 +163,10 @@ class Workspace(Base, TimestampMixin, SoftDeleteMixin):
     slug = Column(String(100), nullable=False)
     icon_url = Column(Text, nullable=True)
     is_default = Column(Boolean, nullable=False, default=False)
-    status = Column(String(20), nullable=False, default="active")  # 'active' | 'archived'
+    status = Column(String(20), nullable=False, default="active")  
     metadata_ = Column("metadata", JSONB, nullable=False, default=dict)
 
-    # Relationships
+    
     organization = relationship("Organization", back_populates="workspaces")
     configuration = relationship(
         "WorkspaceConfiguration",

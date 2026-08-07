@@ -3,7 +3,6 @@ API v1 Workspaces Endpoints.
 
 Handles workspace creation, configuration, security policies, switching, and context.
 """
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +14,6 @@ from app.dependencies import (
     get_current_identity,
     get_current_user,
     get_current_workspace_context,
-    require_permission,
 )
 from app.domain.workspace.schemas import (
     SwitchWorkspaceRequest,
@@ -32,7 +30,7 @@ from app.domain.workspace.services import PolicyService, RBACService, WorkspaceS
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
-@router.get("", response_model=List[WorkspaceResponse])
+@router.get("", response_model=list[WorkspaceResponse])
 async def list_user_workspaces(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

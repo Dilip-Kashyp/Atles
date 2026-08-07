@@ -36,5 +36,5 @@ def get_redis_client() -> aioredis.Redis:
     return _client
 
 
-# Convenience alias used throughout the codebase
+
 redis_client = get_redis_client()

@@ -1,7 +1,6 @@
 """
 API v1 Workspace Memberships & Invitations Endpoints.
 """
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,9 +11,8 @@ from app.dependencies import get_current_user
 from app.domain.shared.exceptions import AtlasError
 from app.domain.workspace.repository import MemberRepository
 from app.domain.workspace.schemas import (
-    InviteAcceptRequest,
-    InviteRequest,
     InvitationResponse,
+    InviteRequest,
     WorkspaceMemberResponse,
 )
 from app.domain.workspace.services import InviteService, RBACService
@@ -22,7 +20,7 @@ from app.domain.workspace.services import InviteService, RBACService
 router = APIRouter(prefix="/workspaces", tags=["memberships"])
 
 
-@router.get("/{workspace_id}/members", response_model=List[WorkspaceMemberResponse])
+@router.get("/{workspace_id}/members", response_model=list[WorkspaceMemberResponse])
 async def list_workspace_members(
     workspace_id: UUID,
     current_user=Depends(get_current_user),

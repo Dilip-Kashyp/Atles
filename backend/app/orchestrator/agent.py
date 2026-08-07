@@ -50,7 +50,7 @@ class Orchestrator:
                 log.info("[CHECKPOINT: MEMORY_CONTEXT_INJECTED] Prefix=%d chars", len(prefix))
 
         log.info("[CHECKPOINT 2/4: LLM_QUERY] Sending prompt to LLM")
-        first_response = self._llm.send_message(enriched_message)
+        first_response = await self._llm.send_message(enriched_message)
         function_call  = self._llm.extract_function_call(first_response)
 
         if function_call is not None:
@@ -72,7 +72,7 @@ class Orchestrator:
                     )
 
             log.info("[CHECKPOINT: TOOL_SUCCESS] Feeding result back to LLM")
-            final_response = self._llm.send_tool_result(
+            final_response = await self._llm.send_tool_result(
                 original_message=enriched_message,
                 tool_call_context=tool_context,
                 tool_result=tool_result,

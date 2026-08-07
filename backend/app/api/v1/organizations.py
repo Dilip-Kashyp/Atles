@@ -3,7 +3,6 @@ API v1 Organizations Endpoints.
 
 Handles organization management and organization-level members.
 """
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -84,7 +83,7 @@ async def update_organization(
     return OrganizationResponse.model_validate(updated_org)
 
 
-@router.get("/{id}/members", response_model=List[OrganizationMemberResponse])
+@router.get("/{id}/members", response_model=list[OrganizationMemberResponse])
 async def list_organization_members(
     id: UUID,
     current_user=Depends(get_current_user),
