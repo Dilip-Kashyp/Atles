@@ -45,12 +45,18 @@ class IntegrationService:
         )
         integration = result.scalars().first()
 
+        # Extract provider workspace ID if available (e.g. Slack Team ID)
+        provider_workspace_id = None
+        if provider == "slack":
+            provider_workspace_id = token_data.get("raw_profile", {}).get("team", {}).get("id")
+            
         is_new = False
         if not integration:
             integration = Integration(
                 workspace_id=workspace_id,
                 provider_type=provider,
                 provider_variant=f"{provider}_cloud", # Default variant
+                provider_workspace_id=provider_workspace_id,
                 type="WORKSPACE",
                 status="CONNECTED"
             )
@@ -59,6 +65,8 @@ class IntegrationService:
             is_new = True
         else:
             integration.status = "CONNECTED"
+            if provider_workspace_id:
+                integration.provider_workspace_id = provider_workspace_id
 
         # Update or create credentials
         access_token = token_data.get("access_token")

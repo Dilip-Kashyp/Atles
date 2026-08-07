@@ -158,10 +158,10 @@ async def callback(
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,
-        secure=True,
+        secure=settings.cookie_secure,
         samesite="lax",
         max_age=30 * 24 * 3600,
-        path="/api/v1/auth",
+        path="/",
     )
 
     frontend_origin = settings.frontend_origin.rstrip("/")
@@ -215,6 +215,7 @@ async def merge_accounts(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(
+    response: Response,
     payload: Optional[RefreshRequest] = None,
     refresh_token_cookie: Optional[str] = Cookie(None, alias="refresh_token"),
     db: AsyncSession = Depends(get_db),
@@ -233,15 +234,14 @@ async def refresh_tokens(
     except AuthenticationError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
 
-    response = Response()
     response.set_cookie(
         key="refresh_token",
         value=new_refresh,
         httponly=True,
-        secure=True,
+        secure=settings.cookie_secure,
         samesite="lax",
         max_age=30 * 24 * 3600,
-        path="/api/v1/auth",
+        path="/",
     )
     return TokenResponse(access_token=new_access, token_type="bearer", expires_in=900)
 
@@ -252,7 +252,7 @@ async def logout(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "Successfully logged out."}
 
 
@@ -264,7 +264,7 @@ async def logout_all(
 ):
     session_service = SessionService(db)
     await session_service.logout_all_sessions(current_user.id)
-    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "Successfully logged out of all devices."}
 
 

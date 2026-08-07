@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     
     # Security encryption key (32-byte url-safe base64 key)
     atlas_master_key: str = "super_secret_master_key_change_me_32_bytes!"
+    cookie_secure: bool = False
     
     # OAuth Configurations
     github_client_id: str = ""

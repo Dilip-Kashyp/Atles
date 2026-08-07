@@ -68,6 +68,7 @@ export async function apiClient<T = any>({
             const data = await refreshResponse.json();
             const newAccessToken = data.access_token;
             localStorage.setItem("atlas_access_token", newAccessToken);
+            document.cookie = `atlas_access_token=${newAccessToken}; path=/; max-age=31536000; SameSite=Lax`;
             isRefreshing = false;
             onRefreshed(newAccessToken);
             
@@ -83,12 +84,14 @@ export async function apiClient<T = any>({
           localStorage.removeItem("atlas_workspace_id");
           document.cookie = "atlas_access_token=; path=/; max-age=0; SameSite=Lax";
           
-          window.dispatchEvent(
-            new CustomEvent("atlas-notification", {
-              detail: { message: "Session expired. Please log in again.", type: "error" },
-            })
-          );
-          window.location.href = "/login";
+          if (window.location.pathname !== "/login") {
+            window.dispatchEvent(
+              new CustomEvent("atlas-notification", {
+                detail: { message: "Session expired. Please log in again.", type: "error" },
+              })
+            );
+            window.location.href = "/login";
+          }
           throw new Error("Session expired. Please log in again.");
         }
       } else {

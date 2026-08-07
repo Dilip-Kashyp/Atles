@@ -261,10 +261,10 @@ def get_orchestrator(request: Request):
     return orchestrator
 
 
-def get_slack_platform(request: Request):
-    platform = getattr(request.app.state, "slack_platform", None)
-    if platform is None:
-        raise HTTPException(status_code=500, detail="Slack platform is not configured")
-    return platform
+def get_slack_webhook_handler(request: Request):
+    handler = getattr(request.app.state, "slack_webhook_handler", None)
+    if handler is None:
+        raise HTTPException(status_code=500, detail="Slack webhook handler is not configured")
+    return handler
 
 

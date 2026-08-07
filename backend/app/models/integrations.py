@@ -13,6 +13,7 @@ class Integration(Base):
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
     provider_type = Column(String, nullable=False)  # 'github', 'jira', 'notion'
     provider_variant = Column(String, nullable=False)  # 'github_cloud', 'github_enterprise', 'jira_cloud'
+    provider_workspace_id = Column(String, nullable=True, index=True) # e.g. Slack Team ID
     type = Column(String, nullable=False, default="WORKSPACE")  # 'WORKSPACE', 'PERSONAL'
     status = Column(String, nullable=False, default="CONNECTED")  # 'CONNECTED', 'DISCONNECTED'
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

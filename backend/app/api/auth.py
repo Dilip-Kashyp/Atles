@@ -105,10 +105,10 @@ async def callback(
         key="refresh_token",
         value=raw_refresh,
         httponly=True,
-        secure=True,
+        secure=settings.cookie_secure,
         samesite="lax",
         max_age=30 * 24 * 3600,
-        path="/api",
+        path="/",
     )
 
     frontend_origin = settings.frontend_origin.rstrip("/")
@@ -133,5 +133,5 @@ async def refresh(refresh_token: str = Cookie(None), response: Response = None):
 @router.post("/logout")
 async def logout(response: Response):
     """Clear authorization cookies."""
-    response.delete_cookie("refresh_token")
+    response.delete_cookie("refresh_token", path="/")
     return {"message": "Successfully logged out"}
