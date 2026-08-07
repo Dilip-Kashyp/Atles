@@ -9,7 +9,15 @@ from sqlalchemy import create_engine, pool
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.config import get_settings
-from app.models.base import Base
+from app.infrastructure.database.base import Base
+
+# Import all domain & platform models so Alembic metadata registers them
+import app.domain.identity.models  # noqa
+import app.domain.workspace.models  # noqa
+import app.domain.audit.models  # noqa
+import app.models.chat  # noqa
+import app.models.integrations  # noqa
+import app.models.workflows  # noqa
 
 settings = get_settings()
 
@@ -35,7 +43,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    # Build engine directly from settings instead of alembic.ini config
     connectable = create_engine(
         settings.database_sync_url,
         poolclass=pool.NullPool,

@@ -33,6 +33,10 @@ async def _check_gemini(settings: Settings, errors: list[str]) -> None:
 
 
 async def _check_slack(settings: Settings, errors: list[str]) -> None:
+    if not settings.slack_bot_token:
+        log.info("[PREFLIGHT] Slack token — SKIPPED (No global token configured)")
+        return
+        
     try:
         from slack_sdk import WebClient
         resp = WebClient(token=settings.slack_bot_token).auth_test()

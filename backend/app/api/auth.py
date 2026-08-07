@@ -10,6 +10,8 @@ from app.auth.jwt import create_access_token, create_refresh_token, verify_token
 from app.auth.oauth_registry import oauth_registry
 from app.utils.redis import redis_client
 
+from app.domain.identity.services import IdentityService, SessionService
+from app.domain.workspace.services import WorkspaceService
 from app.models.tenancy import User, Organization, Workspace, Membership
 
 settings = get_settings()
@@ -77,62 +79,41 @@ async def callback(
     user_info = token_payload.get("user_info", {})
     email = user_info.get("email")
 
-    if not email:
-        raise HTTPException(status_code=400, detail="OAuth provider did not return user email")
+    identity_service = IdentityService(db)
+    session_service = SessionService(db)
+    workspace_service = WorkspaceService(db)
 
-    # Query or create the user
-    result = await db.execute(select(User).filter(User.email == email))
-    user = result.scalars().first()
+    provider_user_id = str(token_payload.get("provider_user_id") or email)
 
-    if not user:
-        # First time signup - create User, default Org, Workspace, and Membership
-        user = User(
-            email=email,
-            name=user_info.get("name"),
-            avatar_url=user_info.get("avatar_url"),
-        )
-        db.add(user)
-        await db.flush()  # Get user ID
+    user, oauth_acc, is_new = await identity_service.find_or_create_user_from_oauth(
+        provider=provider,
+        provider_user_id=provider_user_id,
+        provider_email=email,
+        profile_data=token_payload,
+        access_token=token_payload.get("access_token"),
+        refresh_token=token_payload.get("refresh_token"),
+    )
 
-        org = Organization(name=f"{user.name or 'Personal'}'s Org")
-        db.add(org)
-        await db.flush()
+    if is_new:
+        await workspace_service.provision_personal_workspace(user)
 
-        workspace = Workspace(org_id=org.id, name="Default Workspace")
-        db.add(workspace)
-        await db.flush()
-
-        membership = Membership(
-            user_id=user.id,
-            workspace_id=workspace.id,
-            role="OWNER",
-        )
-        db.add(membership)
-        await db.commit()
-    else:
-        # Update user name/avatar if changed
-        user.name = user_info.get("name") or user.name
-        user.avatar_url = user_info.get("avatar_url") or user.avatar_url
-        await db.commit()
-
-    # Generate Auth tokens
-    user_id_str = str(user.id)
-    access_token = create_access_token(user_id_str)
-    refresh_token = create_refresh_token(user_id_str)
+    # Generate Auth tokens & Session
+    session, access_token, raw_refresh = await session_service.create_session(user_id=user.id)
 
     # Set refresh token as secure cookie
     response.set_cookie(
         key="refresh_token",
-        value=refresh_token,
+        value=raw_refresh,
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=7 * 24 * 3600,  # 7 days
+        max_age=30 * 24 * 3600,
+        path="/api",
     )
 
     frontend_origin = settings.frontend_origin.rstrip("/")
-    frontend_redirect = f"{frontend_origin}{settings.frontend_redirect_path}?access_token={access_token}"
-    return RedirectResponse(frontend_redirect)
+    frontend_redirect = f"{frontend_origin}{settings.frontend_redirect_path}#access_token={access_token}"
+    return RedirectResponse(frontend_redirect, status_code=302)
 
 
 @router.post("/refresh")

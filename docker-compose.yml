@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   db:
@@ -35,6 +34,10 @@ services:
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
       - ATLAS_MASTER_KEY=${ATLAS_MASTER_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
+      - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
     volumes:
       - ./backend:/app
     depends_on:

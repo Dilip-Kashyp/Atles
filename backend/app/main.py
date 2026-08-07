@@ -1,3 +1,6 @@
+"""
+Atlas Backend FastAPI Application Entry Point.
+"""
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -7,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, dashboard, integrations, slack, webhooks
+from app.api.v1 import v1_router
 from app.config import get_settings
 from app.errors import register_error_handlers
 from app.startup_checks import run_preflight_checks
@@ -25,8 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     log.info("[CHECKPOINT: APP_STARTUP] Starting Atlas platform")
 
-    if not settings.slack_bot_token or not settings.gemini_api_key:
-        log.critical("Missing core settings (SLACK_BOT_TOKEN or GEMINI_API_KEY).")
+    if not settings.gemini_api_key:
+        log.critical("Missing core settings (GEMINI_API_KEY).")
         sys.exit(1)
 
     # Validate Gemini and Slack connection
@@ -39,7 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="Atlas API",
-    description="Atlas Conversation Intelligence Platform API",
+    description="Atlas Enterprise Conversation Intelligence Platform API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -47,17 +51,25 @@ app = FastAPI(
 )
 
 # CORS configuration
+settings = get_settings()
+allowed_origins = [settings.frontend_origin.rstrip("/")]
+if "http://localhost:3000" not in allowed_origins:
+    allowed_origins.append("http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js frontend local port
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 register_error_handlers(app)
 
-# Include generic platform & dashboard routers
+# Include API v1 routes
+app.include_router(v1_router, prefix="/api")
+
+# Include legacy router endpoints for backward compatibility
 app.include_router(auth.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(integrations.router, prefix="/api")
@@ -76,4 +88,5 @@ async def root() -> dict[str, str]:
         "name": "Atlas Platform",
         "version": "1.0.0",
         "docs": "/docs",
+        "v1_api": "/api/v1",
     }

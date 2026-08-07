@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     gemini_api_key: str
     gemini_model: str = "gemini-2.5-flash"
-    slack_bot_token: str
+    slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_bot_user_id: str = ""
     
