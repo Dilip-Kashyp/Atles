@@ -17,7 +17,7 @@ async def format_error(exc: Exception) -> str:
         )
 
         resp = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model=settings.gemini_model,
             contents=prompt,
         )
         return resp.text or "I hit an unexpected snag."
@@ -45,7 +45,7 @@ async def format_response(response: str) -> str:
         )
 
         resp = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model=settings.gemini_model,
             contents=prompt,
         )
         return resp.text or response

@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     llm_client = GeminiClient(
         api_key=settings.gemini_api_key,
-        model_name="gemini-2.5-flash",
+        model_name=settings.gemini_model,
         tools=tool_dispatcher.get_all_tools(),
     )
     
