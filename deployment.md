@@ -27,17 +27,22 @@ docker compose logs backend -f
 
 ---
 
-## 2. Exposing Slack Webhooks (Development)
+## 2. Exposing Webhooks (Development)
 
-Because Slack API requires a public HTTPS endpoint to deliver webhooks (`/slack/events`), use a public tunnel during local development:
+Because Provider APIs (Slack, GitHub) require a public HTTPS endpoint to deliver webhooks, use a public tunnel during local development:
 
 ```bash
 # Expose port 8000 using localtunnel
 npx localtunnel --port 8000
 ```
 
+### Slack Setup
 Set the public URL in your Slack App settings under **Event Subscriptions**:
 `https://<your-subdomain>.loca.lt/slack/events`
+
+### GitHub Setup
+Set the public URL in your GitHub App settings under **General -> Webhook**:
+`https://<your-subdomain>.loca.lt/api/v1/webhooks/github`
 
 ---
 
