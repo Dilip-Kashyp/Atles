@@ -154,7 +154,11 @@ async def callback(
         user_agent=user_agent,
     )
 
-    response.set_cookie(
+    frontend_origin = settings.frontend_origin.rstrip("/")
+    frontend_redirect = f"{frontend_origin}{settings.frontend_redirect_path}#access_token={access_token}"
+    redirect_response = RedirectResponse(frontend_redirect, status_code=status.HTTP_302_FOUND)
+    
+    redirect_response.set_cookie(
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,
@@ -164,9 +168,7 @@ async def callback(
         path="/",
     )
 
-    frontend_origin = settings.frontend_origin.rstrip("/")
-    frontend_redirect = f"{frontend_origin}{settings.frontend_redirect_path}#access_token={access_token}"
-    return RedirectResponse(frontend_redirect, status_code=status.HTTP_302_FOUND)
+    return redirect_response
 
 
 @router.post("/link/{provider}", response_model=OAuthAccountResponse)

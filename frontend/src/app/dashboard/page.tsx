@@ -13,22 +13,38 @@ import {
   Typography,
   UsersIcon,
   Button,
+  SlackIcon,
+  GitHubIcon,
+  GoogleIcon,
 } from "@/components";
 import {
   CurrentIdentity,
   fetchCurrentIdentity,
+  fetchMyIntegrations,
+  fetchAllIntegrationUsers,
+  ConnectedIntegration,
 } from "@/services/api";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [identity, setIdentity] = useState<CurrentIdentity | null>(null);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [totalApps, setTotalApps] = useState<number>(0);
+  const [integrations, setIntegrations] = useState<ConnectedIntegration[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const idRes = await fetchCurrentIdentity();
+      const [idRes, usersRes, appsRes] = await Promise.all([
+        fetchCurrentIdentity(),
+        fetchAllIntegrationUsers(),
+        fetchMyIntegrations()
+      ]);
       setIdentity(idRes);
+      setTotalUsers(usersRes.length);
+      setTotalApps(appsRes.length);
+      setIntegrations(appsRes);
     } catch (err) {
       console.error(err);
       router.push(ROUTES.LOGIN);
@@ -51,6 +67,13 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const getProviderIcon = (provider: string) => {
+    if (provider.toLowerCase() === "slack") return <SlackIcon className="w-6 h-6" />;
+    if (provider.toLowerCase() === "github") return <GitHubIcon className="w-6 h-6" />;
+    if (provider.toLowerCase() === "google") return <GoogleIcon className="w-6 h-6" />;
+    return <SparklesIcon className="w-6 h-6 text-purple-400" />;
+  };
 
   return (
     <div className="min-h-screen bg-[#080b14] pl-28 pr-8 py-8">
@@ -124,10 +147,58 @@ export default function DashboardPage() {
                 <Typography variant="caption">Total Users</Typography>
                 <UsersIcon className="w-5 h-5 text-blue-400" />
               </div>
-              <Typography variant="h2">1,245</Typography>
+              <Typography variant="h2">{totalUsers.toLocaleString()}</Typography>
               <Typography variant="body2">Active Across System</Typography>
             </Stack>
           </Card>
+
+          <Card>
+            <Stack gap={2}>
+              <div className="flex items-center justify-between">
+                <Typography variant="caption">Connected Apps</Typography>
+                <SparklesIcon className="w-5 h-5 text-purple-400" />
+              </div>
+              <Typography variant="h2">{totalApps.toLocaleString()}</Typography>
+              <Typography variant="body2">Active Integrations</Typography>
+            </Stack>
+          </Card>
+        </div>
+
+        {/* Integration Status List */}
+        <div className="space-y-4">
+          <Typography variant="h3">Integration Status</Typography>
+          {integrations.length === 0 ? (
+            <Card className="flex items-center justify-center py-10">
+              <Typography variant="body2" className="text-slate-400">
+                No integrations connected. Go to the Integrations tab to connect apps.
+              </Typography>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {integrations.map((integration) => (
+                <Card key={integration.id} className="hover:border-white/20 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                        {getProviderIcon(integration.provider_type)}
+                      </div>
+                      <div>
+                        <Typography variant="body1" className="capitalize font-medium">
+                          {integration.provider_type}
+                        </Typography>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="w-2 h-2 rounded-full bg-green-500" />
+                          <Typography variant="caption" className="text-green-400">
+                            {integration.status}
+                          </Typography>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

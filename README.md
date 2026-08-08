@@ -1,6 +1,6 @@
 # Atlas — Conversation Intelligence & Enterprise Platform
 
-Atlas is a modular enterprise AI platform for turning conversations into structured work. Built as a modular monolith, it combines a FastAPI backend, a Next.js 15 dashboard, multi-tenant Slack event ingestion, OAuth 2.0 authentication, and a Gemini-powered LLM orchestrator.
+Atlas is a modular enterprise AI platform for turning conversations into structured work. Built as a modular monolith, it combines a FastAPI backend, a Next.js 15 dashboard, multi-tenant Slack & GitHub event ingestion, OAuth 2.0 authentication, and a Gemini-powered LLM orchestrator.
 
 ---
 
@@ -8,9 +8,10 @@ Atlas is a modular enterprise AI platform for turning conversations into structu
 
 - **Unified Web Dashboard**: Onboarding, integration management, and workspace configuration.
 - **Enterprise Multi-Tenancy**: Organization & Workspace scoping with bound provider integrations.
-- **Dynamic Multi-Tenant Slack Ingress**: Dynamic token resolution per Slack Team ID, decrypted on-the-fly from PostgreSQL.
+- **Dynamic Multi-Tenant Webhook Ingress**: Dynamic token resolution per Slack Team ID and GitHub events, decrypted on-the-fly from PostgreSQL.
 - **Robust Auth & Token Rotation**: OAuth 2.0 (Google, GitHub, Slack) with automatic JWT access token generation and secure server-side refresh token rotation (HTTP-only cookies).
 - **Gemini LLM Orchestrator**: Function calling, tool dispatching, and conversation context management.
+- **Response Formatting Utilities**: Built-in utilities for standardizing LLM output and API responses.
 - **Database & Migration Engine**: PostgreSQL schema managed via Alembic async migrations.
 
 ---
@@ -18,20 +19,20 @@ Atlas is a modular enterprise AI platform for turning conversations into structu
 ## High-Level Architecture
 
 ```text
-Slack / Web Dashboard / Endpoints
-             │
-             ▼
-      FastAPI API (v1)
-             │
- ┌───────────┼───────────┐
- ▼           ▼           ▼
-Auth    Integrations   Slack Ingress (Multi-Tenant DB Lookup)
- Service   Service       │
-                         ▼
-                Gemini Orchestrator
-                         │
-                         ▼
-             Tool Dispatcher & Providers
+Slack / GitHub Webhooks / Web Dashboard / Endpoints
+                   │
+                   ▼
+            FastAPI API (v1)
+                   │
+  ┌────────────────┼────────────────┐
+  ▼                ▼                ▼
+ Auth        Integrations    Webhook Ingress (Multi-Tenant DB Lookup)
+Service        Service              │
+                                    ▼
+                           Gemini Orchestrator
+                                    │
+                                    ▼
+                        Tool Dispatcher & Providers
 ```
 
 ---
@@ -49,7 +50,8 @@ backend/app/
 │   ├── slack.py                 # Multi-tenant Slack event handler (/slack/events)
 │   └── v1/
 │       ├── auth.py              # Centralized Auth v1 (refresh, logout, me)
-│       └── integrations.py      # Workspace integrations v1
+│       ├── integrations.py      # Workspace integrations v1
+│       └── webhooks.py          # Provider webhooks (e.g., GitHub)
 ├── config.py                    # Environment settings (cookie_secure, master key, database URLs)
 ├── credentials/
 │   └── manager.py               # Fernet symmetric token encryption/decryption
@@ -69,7 +71,10 @@ backend/app/
 │   ├── platform_base.py         # Normalized event schema & ChatPlatform interface
 │   ├── slack_handler.py         # SlackWebhookHandler & per-tenant SlackPlatform
 │   └── tool_dispatcher.py       # Tool execution dispatcher
-└── tools/                       # Integrations tools (GitHub, Notion, Slack)
+├── tools/                       # Integrations tools
+│   └── github.py                # GitHub operations tool
+└── utils/
+    └── response_formatter.py    # Utilities for standardized response formatting
 ```
 
 ### Frontend (`frontend/src`)
@@ -151,14 +156,16 @@ docker compose exec backend alembic upgrade head
 
 ---
 
-## Slack Webhook Setup (Development Tunnel)
+## Webhook Setup (Development Tunnel)
 
-Slack requires a public HTTPS URL to deliver event webhooks.
+Provider webhooks require a public HTTPS URL to deliver events during local development.
 
 1. Expose backend port `8000` using localtunnel or ngrok:
    ```bash
    npx localtunnel --port 8000
    ```
+
+### Slack Webhooks
 2. In your [Slack API Dashboard](https://api.slack.com/apps):
    - Go to **Event Subscriptions** -> Enable Events.
    - Set **Request URL** to:
@@ -167,6 +174,13 @@ Slack requires a public HTTPS URL to deliver event webhooks.
 3. Add Redirect URL under **OAuth & Permissions**:
    `http://localhost:8000/api/v1/workspaces/integrations/slack/callback`
 4. On your dashboard (`http://localhost:3000/integrations`), click **Connect Slack** to authorize your workspace.
+
+### GitHub Webhooks
+2. In your [GitHub App Settings](https://github.com/settings/apps):
+   - Go to **General** -> **Webhook**.
+   - Set **Webhook URL** to:
+     `https://<your-tunnel-url>/api/v1/webhooks/github`
+   - Subscribe to desired repository events (e.g., issues, pull requests).
 
 ---
 
