@@ -1,4 +1,5 @@
-import { apiClient } from "@/helper/apiClient";
+import { apiClient } from "@/utils/apiClient";
+import { API_ROUTES } from "@/constants";
 
 export interface UserProfile {
   id: string;
@@ -12,167 +13,91 @@ export interface UserProfile {
   created_at: string;
 }
 
-export interface ServiceAccount {
-  id: string;
-  workspace_id: string;
-  name: string;
-  description?: string;
-  role_id: string;
-  status: string;
-  created_at: string;
-}
-
 export interface CurrentIdentity {
   auth_type: string;
   request_id: string;
   correlation_id: string;
   user?: UserProfile;
-  service_account?: ServiceAccount;
-  workspace?: Workspace;
   permissions: string[];
-}
-
-export interface Workspace {
-  id: string;
-  org_id: string;
-  name: string;
-  slug: string;
-  icon_url?: string;
-  is_default: boolean;
-  status: string;
-  created_at: string;
-}
-
-export interface WorkspacePolicy {
-  id: string;
-  workspace_id: string;
-  require_mfa: boolean;
-  allow_guests: boolean;
-  allowed_integrations: string[];
-  retention_days: number;
-  default_ai_provider: string;
-  api_restrictions: Record<string, any>;
-  updated_at: string;
-}
-
-export interface WorkspaceConfiguration {
-  id: string;
-  workspace_id: string;
-  timezone: string;
-  branding: Record<string, any>;
-  default_provider?: string;
-  ai_preferences: Record<string, any>;
-  notification_preferences: Record<string, any>;
-}
-
-export interface ApiKey {
-  id: string;
-  workspace_id: string;
-  user_id?: string;
-  service_account_id?: string;
-  name: string;
-  description?: string;
-  key_prefix: string;
-  scopes: string[];
-  last_used_at?: string;
-  expires_at?: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface ApiKeyCreateResponse extends ApiKey {
-  raw_key: string;
 }
 
 // API Service Methods
 export async function fetchCurrentIdentity(): Promise<CurrentIdentity> {
-  return apiClient({ url: "/auth/context" });
+  return apiClient({ url: API_ROUTES.AUTH_CONTEXT });
 }
 
 export async function fetchCurrentUser(): Promise<UserProfile> {
-  return apiClient({ url: "/auth/me" });
-}
-
-export async function fetchWorkspaces(): Promise<Workspace[]> {
-  return apiClient({ url: "/workspaces" });
-}
-
-export async function fetchCurrentWorkspace(): Promise<Workspace> {
-  return apiClient({ url: "/workspaces/current" });
-}
-
-export async function createWorkspace(name: string): Promise<Workspace> {
-  return apiClient({ url: "/workspaces", method: "POST", body: { name } });
-}
-
-export async function switchWorkspace(workspaceId: string): Promise<Workspace> {
-  const ws = await apiClient<Workspace>({
-    url: "/workspaces/switch",
-    method: "POST",
-    body: { workspace_id: workspaceId },
-  });
-  if (typeof window !== "undefined") {
-    localStorage.setItem("atlas_workspace_id", ws.id);
-  }
-  return ws;
-}
-
-export async function fetchWorkspacePolicies(workspaceId: string): Promise<WorkspacePolicy> {
-  return apiClient({ url: `/workspaces/${workspaceId}/policies` });
-}
-
-export async function updateWorkspacePolicies(
-  workspaceId: string,
-  payload: Partial<WorkspacePolicy>
-): Promise<WorkspacePolicy> {
-  return apiClient({ url: `/workspaces/${workspaceId}/policies`, method: "PATCH", body: payload });
-}
-
-export async function fetchWorkspaceConfig(workspaceId: string): Promise<WorkspaceConfiguration> {
-  return apiClient({ url: `/workspaces/${workspaceId}/configuration` });
-}
-
-export async function updateWorkspaceConfig(
-  workspaceId: string,
-  payload: Partial<WorkspaceConfiguration>
-): Promise<WorkspaceConfiguration> {
-  return apiClient({ url: `/workspaces/${workspaceId}/configuration`, method: "PATCH", body: payload });
-}
-
-export async function fetchServiceAccounts(workspaceId: string): Promise<ServiceAccount[]> {
-  return apiClient({ url: `/workspaces/${workspaceId}/service-accounts` });
-}
-
-export async function createServiceAccount(
-  workspaceId: string,
-  payload: { name: string; description?: string; role_name?: string }
-): Promise<ServiceAccount> {
-  return apiClient({ url: `/workspaces/${workspaceId}/service-accounts`, method: "POST", body: payload });
-}
-
-export async function deleteServiceAccount(workspaceId: string, saId: string): Promise<void> {
-  return apiClient({ url: `/workspaces/${workspaceId}/service-accounts/${saId}`, method: "DELETE" });
-}
-
-export async function fetchApiKeys(workspaceId: string): Promise<ApiKey[]> {
-  return apiClient({ url: `/workspaces/${workspaceId}/api-keys` });
-}
-
-export async function createApiKey(
-  workspaceId: string,
-  payload: { name: string; description?: string; service_account_id?: string; scopes?: string[] }
-): Promise<ApiKeyCreateResponse> {
-  return apiClient({ url: `/workspaces/${workspaceId}/api-keys`, method: "POST", body: payload });
-}
-
-export async function revokeApiKey(workspaceId: string, keyId: string): Promise<void> {
-  return apiClient({ url: `/workspaces/${workspaceId}/api-keys/${keyId}`, method: "DELETE" });
+  return apiClient({ url: API_ROUTES.AUTH_ME });
 }
 
 export async function unlinkOAuthProvider(provider: string): Promise<{ message: string }> {
-  return apiClient({ url: `/auth/unlink/${provider}`, method: "DELETE" });
+  return apiClient({ url: API_ROUTES.AUTH_UNLINK(provider), method: "DELETE" });
 }
 
 export async function mergeUserAccounts(secondaryUserId: string): Promise<UserProfile> {
-  return apiClient({ url: "/auth/merge", method: "POST", body: { secondary_user_id: secondaryUserId } });
+  return apiClient({ url: API_ROUTES.AUTH_MERGE, method: "POST", body: { secondary_user_id: secondaryUserId } });
+}
+
+export interface WorkspaceCapability {
+  id: string;
+  capability: string;
+}
+
+export interface IntegrationUser {
+  id: string;
+  integration_id: string;
+  provider_user_id: string;
+  username: string | null;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  is_bot: string | null;
+  is_active: boolean;
+  can_read: boolean;
+  can_write: boolean;
+  can_delete: boolean;
+  raw_profile: Record<string, any> | null;
+  created_at: string;
+}
+
+export interface AvailableIntegration {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export interface ConnectedIntegration {
+  id: string;
+  workspace_id: string;
+  provider_type: string;
+  status: string;
+  created_at: string;
+}
+
+export async function fetchAvailableIntegrations(): Promise<AvailableIntegration[]> {
+  return apiClient({ url: API_ROUTES.INTEGRATIONS_AVAILABLE });
+}
+
+export async function fetchMyIntegrations(): Promise<ConnectedIntegration[]> {
+  return apiClient({ url: API_ROUTES.INTEGRATIONS_ME });
+}
+
+export async function disconnectIntegration(integrationId: string): Promise<void> {
+  return apiClient({ url: API_ROUTES.INTEGRATION_DISCONNECT(integrationId), method: "DELETE" });
+}
+
+export async function syncIntegrationUsers(integrationId: string): Promise<{ status: string; synced_users: number }> {
+  return apiClient({ url: API_ROUTES.INTEGRATION_USERS_SYNC(integrationId), method: "POST" });
+}
+
+export async function fetchIntegrationUsers(integrationId: string): Promise<IntegrationUser[]> {
+  return apiClient({ url: API_ROUTES.INTEGRATION_USERS(integrationId) });
+}
+
+export async function fetchAllIntegrationUsers(): Promise<IntegrationUser[]> {
+  return apiClient({ url: API_ROUTES.INTEGRATION_USERS_ALL });
+}
+
+export async function updateIntegrationUserPermissions(userId: string, payload: Partial<IntegrationUser>): Promise<IntegrationUser> {
+  return apiClient({ url: API_ROUTES.INTEGRATION_USER_PERMISSIONS(userId), method: "PATCH", body: payload });
 }

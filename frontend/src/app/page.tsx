@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ROUTES, STORAGE_KEYS } from "@/constants";
 
 export default function Home() {
   const router = useRouter();
@@ -13,18 +14,18 @@ export default function Home() {
         const tokenMatch = hash.match(/(?:access_token|token)=([^&]+)/);
         if (tokenMatch && tokenMatch[1]) {
           const token = tokenMatch[1];
-          localStorage.setItem("atlas_access_token", token);
-          document.cookie = `atlas_access_token=${token}; path=/; max-age=31536000; SameSite=Lax`;
-          router.replace("/dashboard");
+          localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+          document.cookie = `${STORAGE_KEYS.ACCESS_TOKEN}=${token}; path=/; max-age=31536000; SameSite=Lax`;
+          router.replace(ROUTES.DASHBOARD);
           return;
         }
       }
 
-      const existingToken = localStorage.getItem("atlas_access_token");
+      const existingToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       if (existingToken) {
-        router.replace("/dashboard");
+        router.replace(ROUTES.DASHBOARD);
       } else {
-        router.replace("/login");
+        router.replace(ROUTES.LOGIN);
       }
     }
   }, [router]);

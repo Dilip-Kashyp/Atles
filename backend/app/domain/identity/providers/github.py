@@ -6,6 +6,12 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.constants import (
+    GITHUB_ACCESS_TOKEN_URL,
+    GITHUB_AUTHORIZE_URL,
+    GITHUB_USER_EMAILS_URL,
+    GITHUB_USER_INFO_URL,
+)
 from app.domain.identity.providers.base import BaseLoginProvider
 
 
@@ -21,7 +27,7 @@ class GithubLoginProvider(BaseLoginProvider):
         client_id = settings.github_client_id
         scope = "read:user user:email"
         url = (
-            "https://github.com/login/oauth/authorize"
+            f"{GITHUB_AUTHORIZE_URL}"
             f"?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&state={state}"
         )
         return url
@@ -32,7 +38,7 @@ class GithubLoginProvider(BaseLoginProvider):
         settings = get_settings()
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                "https://github.com/login/oauth/access_token",
+                GITHUB_ACCESS_TOKEN_URL,
                 data={
                     "client_id": settings.github_client_id,
                     "client_secret": settings.github_client_secret,
@@ -49,7 +55,7 @@ class GithubLoginProvider(BaseLoginProvider):
 
             
             user_resp = await client.get(
-                "https://api.github.com/user",
+                GITHUB_USER_INFO_URL,
                 headers={"Authorization": f"Bearer {access_token}", "User-Agent": "Atlas-SaaS"},
             )
             if user_resp.status_code != 200:
@@ -60,7 +66,7 @@ class GithubLoginProvider(BaseLoginProvider):
             email = profile.get("email")
             if not email:
                 emails_resp = await client.get(
-                    "https://api.github.com/user/emails",
+                    GITHUB_USER_EMAILS_URL,
                     headers={"Authorization": f"Bearer {access_token}", "User-Agent": "Atlas-SaaS"},
                 )
                 if emails_resp.status_code == 200:

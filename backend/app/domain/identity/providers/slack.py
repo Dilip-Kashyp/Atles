@@ -6,6 +6,11 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.constants import (
+    SLACK_ACCESS_TOKEN_URL,
+    SLACK_AUTHORIZE_URL,
+    SLACK_USER_IDENTITY_URL,
+)
 from app.domain.identity.providers.base import BaseLoginProvider
 
 
@@ -21,10 +26,10 @@ class SlackLoginProvider(BaseLoginProvider):
         client_id = settings.slack_client_id
         
         user_scope = "identity.basic,identity.email,identity.avatar"
-        bot_scope = "chat:write,commands,channels:read"
+        bot_scope = "chat:write,commands,channels:read,users:read"
         
         url = (
-            "https://slack.com/oauth/v2/authorize"
+            f"{SLACK_AUTHORIZE_URL}"
             f"?client_id={client_id}&redirect_uri={redirect_uri}&state={state}"
             f"&user_scope={user_scope}&scope={bot_scope}"
         )
@@ -36,7 +41,7 @@ class SlackLoginProvider(BaseLoginProvider):
         settings = get_settings()
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                "https://slack.com/api/oauth.v2.access",
+                SLACK_ACCESS_TOKEN_URL,
                 data={
                     "client_id": settings.slack_client_id,
                     "client_secret": settings.slack_client_secret,
@@ -59,7 +64,7 @@ class SlackLoginProvider(BaseLoginProvider):
 
             
             user_resp = await client.get(
-                "https://slack.com/api/users.identity",
+                SLACK_USER_IDENTITY_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             profile_data = user_resp.json()

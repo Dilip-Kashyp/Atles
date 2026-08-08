@@ -1,3 +1,4 @@
+import secrets
 """
 FastAPI Dependencies for Enterprise Identity & Tenancy.
 
@@ -54,9 +55,10 @@ async def _get_jwt_identity(
     if not user or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is inactive")
         
+    req_id = request.headers.get("X-Request-ID") or secrets.token_hex(16)
     identity = CurrentIdentity(
-        request_id=request.headers.get("X-Request-ID") or tokens.generate_secure_token(16),
-        correlation_id=request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID"),
+        request_id=req_id,
+        correlation_id=request.headers.get("X-Correlation-ID") or req_id,
     )
     identity.user = user
     identity.auth_type = "jwt"
@@ -74,9 +76,10 @@ async def _get_api_key_identity(
     if not api_key_record or not api_key_record.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
+    req_id = request.headers.get("X-Request-ID") or secrets.token_hex(16)
     identity = CurrentIdentity(
-        request_id=request.headers.get("X-Request-ID") or tokens.generate_secure_token(16),
-        correlation_id=request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID"),
+        request_id=req_id,
+        correlation_id=request.headers.get("X-Correlation-ID") or req_id,
     )
     identity.api_key = api_key_record
 
@@ -119,7 +122,7 @@ async def get_current_identity(
     
     
     if not identity.request_id:
-        identity.request_id = request.headers.get("X-Request-ID") or tokens.generate_secure_token(16)
+        identity.request_id = request.headers.get("X-Request-ID") or secrets.token_hex(16)
         identity.correlation_id = request.headers.get("X-Correlation-ID") or identity.request_id
 
     workspace_id_str = x_workspace_id or request.path_params.get("workspace_id")

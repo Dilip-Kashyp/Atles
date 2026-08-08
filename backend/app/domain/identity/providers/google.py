@@ -6,6 +6,11 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.constants import (
+    GOOGLE_AUTHORIZE_URL,
+    GOOGLE_TOKEN_URL,
+    GOOGLE_USER_INFO_URL,
+)
 from app.domain.identity.providers.base import BaseLoginProvider
 
 
@@ -21,7 +26,7 @@ class GoogleLoginProvider(BaseLoginProvider):
         client_id = settings.google_client_id
         scope = "openid email profile"
         url = (
-            "https://accounts.google.com/o/oauth2/v2/auth"
+            f"{GOOGLE_AUTHORIZE_URL}"
             f"?response_type=code&client_id={client_id}"
             f"&redirect_uri={redirect_uri}&scope={scope}&state={state}&prompt=consent&access_type=offline"
         )
@@ -44,7 +49,7 @@ class GoogleLoginProvider(BaseLoginProvider):
             if pkce_verifier:
                 data["code_verifier"] = pkce_verifier
 
-            resp = await client.post("https://oauth2.googleapis.com/token", data=data)
+            resp = await client.post(GOOGLE_TOKEN_URL, data=data)
             if resp.status_code != 200:
                 raise RuntimeError(f"Google token exchange failed: {resp.text}")
 
@@ -53,7 +58,7 @@ class GoogleLoginProvider(BaseLoginProvider):
 
             
             userinfo_resp = await client.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
+                GOOGLE_USER_INFO_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if userinfo_resp.status_code != 200:

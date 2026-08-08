@@ -1,11 +1,20 @@
 from functools import lru_cache
 
+from app.constants import (
+    DEFAULT_API_REDIRECT_URI_TEMPLATE,
+    DEFAULT_API_V1_REDIRECT_URI_TEMPLATE,
+    DEFAULT_DATABASE_SYNC_URL,
+    DEFAULT_DATABASE_URL,
+    DEFAULT_FRONTEND_ORIGIN,
+    DEFAULT_REDIS_URL,
+)
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     gemini_api_key: str
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = ""
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_bot_user_id: str = ""
@@ -14,9 +23,9 @@ class Settings(BaseSettings):
     slack_dedup_fail_mode: str = "open"
     
     
-    database_url: str = "postgresql+asyncpg://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
-    database_sync_url: str = "postgresql://atlas:atlas_secure_pass@localhost:5432/atlas_dev"
-    redis_url: str = "redis://localhost:6379/0"
+    database_url: str = DEFAULT_DATABASE_URL
+    database_sync_url: str = DEFAULT_DATABASE_SYNC_URL
+    redis_url: str = DEFAULT_REDIS_URL
     
     
     atlas_master_key: str = "super_secret_master_key_change_me_32_bytes!"
@@ -28,13 +37,13 @@ class Settings(BaseSettings):
 
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
+    google_redirect_uri: str = DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider="google")
 
     slack_client_id: str = ""
     slack_client_secret: str = ""
-    slack_redirect_uri: str = "http://localhost:8000/api/auth/slack/callback"
+    slack_redirect_uri: str = DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider="slack")
 
-    frontend_origin: str = "http://localhost:3000"
+    frontend_origin: str = DEFAULT_FRONTEND_ORIGIN
     frontend_redirect_path: str = "/"
 
     model_config = SettingsConfigDict(

@@ -3,10 +3,9 @@ import logging
 from google import genai
 
 from app.config import get_settings
+from app.constants import DEFAULT_ERROR_MESSAGE
 
 log = logging.getLogger(__name__)
-
-DEFAULT_ERROR_MESSAGE = "I hit an unexpected snag."
 
 def _generate_with_fallback(prompt: str, fallback_value: str) -> str:
     settings = get_settings()

@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.constants import DEFAULT_API_V1_REDIRECT_URI_TEMPLATE
 from app.context import CurrentIdentity
 from app.database.session import get_db
 from app.dependencies import get_current_identity, get_current_user
@@ -38,11 +39,11 @@ settings = get_settings()
 
 def _resolve_redirect_uri(provider: str) -> str:
     defaults = {
-        "google": settings.google_redirect_uri or "http://localhost:8000/api/v1/auth/google/callback",
-        "github": getattr(settings, "github_redirect_uri", "http://localhost:8000/api/v1/auth/github/callback"),
-        "slack": settings.slack_redirect_uri or "http://localhost:8000/api/v1/auth/slack/callback",
+        "google": settings.google_redirect_uri or DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider="google"),
+        "github": getattr(settings, "github_redirect_uri", DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider="github")),
+        "slack": settings.slack_redirect_uri or DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider="slack"),
     }
-    return defaults.get(provider.lower(), f"http://localhost:8000/api/v1/auth/{provider}/callback")
+    return defaults.get(provider.lower(), DEFAULT_API_V1_REDIRECT_URI_TEMPLATE.format(provider=provider.lower()))
 
 
 @router.get("/{provider}/login")
@@ -218,7 +219,9 @@ async def refresh_tokens(
     payload: RefreshRequest | None = None,
     refresh_token_cookie: str | None = Cookie(None, alias="refresh_token"),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
+    print("Refresh Request Cookies:", request.cookies)
     raw_token = (payload.refresh_token if payload and payload.refresh_token else None) or refresh_token_cookie
 
     if not raw_token:

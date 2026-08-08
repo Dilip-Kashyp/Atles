@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import v1_router
 from app.config import get_settings
+from app.constants import DEFAULT_FRONTEND_ORIGIN
 from app.errors import register_error_handlers
 from app.startup_checks import run_preflight_checks
 
@@ -82,8 +83,8 @@ app = FastAPI(
 
 settings = get_settings()
 allowed_origins = [settings.frontend_origin.rstrip("/")]
-if "http://localhost:3000" not in allowed_origins:
-    allowed_origins.append("http://localhost:3000")
+if DEFAULT_FRONTEND_ORIGIN not in allowed_origins:
+    allowed_origins.append(DEFAULT_FRONTEND_ORIGIN)
 
 app.add_middleware(
     CORSMiddleware,

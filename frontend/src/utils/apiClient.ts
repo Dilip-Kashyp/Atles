@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_ROUTES, CONSTANTS, EVENTS, ROUTES, STORAGE_KEYS } from "@/constants";
 
 export interface ApiClientOptions {
   url: string;
@@ -26,15 +26,13 @@ export async function apiClient<T = any>({
   headers = {},
 }: ApiClientOptions): Promise<T> {
   const isAbsoluteUrl = url.startsWith("http://") || url.startsWith("https://");
-  const fetchUrl = isAbsoluteUrl ? url : `${BASE_URL}${url}`;
+  const fetchUrl = isAbsoluteUrl ? url : `${CONSTANTS.BASE_URL}${url}`;
 
   const getAuthHeaders = () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("atlas_access_token") : null;
-    const workspaceId = typeof window !== "undefined" ? localStorage.getItem("atlas_workspace_id") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) : null;
 
     const authHeaders: Record<string, string> = {};
     if (token) authHeaders["Authorization"] = `Bearer ${token}`;
-    if (workspaceId) authHeaders["X-Workspace-ID"] = workspaceId;
     return authHeaders;
   };
 
@@ -58,8 +56,12 @@ export async function apiClient<T = any>({
         isRefreshing = true;
         try {
           // Attempt to refresh the token
-          const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
+          const refreshResponse = await fetch(`${CONSTANTS.BASE_URL}${API_ROUTES.AUTH_REFRESH}`, {
             method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
             // Credentials 'include' ensures the HTTP-only refresh cookie is sent
             credentials: "include", 
           });
@@ -67,8 +69,8 @@ export async function apiClient<T = any>({
           if (refreshResponse.ok) {
             const data = await refreshResponse.json();
             const newAccessToken = data.access_token;
-            localStorage.setItem("atlas_access_token", newAccessToken);
-            document.cookie = `atlas_access_token=${newAccessToken}; path=/; max-age=31536000; SameSite=Lax`;
+            localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+            document.cookie = `${STORAGE_KEYS.ACCESS_TOKEN}=${newAccessToken}; path=/; max-age=31536000; SameSite=Lax`;
             isRefreshing = false;
             onRefreshed(newAccessToken);
             
@@ -77,27 +79,26 @@ export async function apiClient<T = any>({
           } else {
             throw new Error("Session expired");
           }
-        } catch (refreshErr) {
+        } catch {
           isRefreshing = false;
           refreshSubscribers = [];
-          localStorage.removeItem("atlas_access_token");
-          localStorage.removeItem("atlas_workspace_id");
-          document.cookie = "atlas_access_token=; path=/; max-age=0; SameSite=Lax";
+          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+          document.cookie = `${STORAGE_KEYS.ACCESS_TOKEN}=; path=/; max-age=0; SameSite=Lax`;
           
-          if (window.location.pathname !== "/login") {
+          if (window.location.pathname !== ROUTES.LOGIN) {
             window.dispatchEvent(
-              new CustomEvent("atlas-notification", {
+              new CustomEvent(EVENTS.NOTIFICATION, {
                 detail: { message: "Session expired. Please log in again.", type: "error" },
               })
             );
-            window.location.href = "/login";
+            window.location.href = ROUTES.LOGIN;
           }
           throw new Error("Session expired. Please log in again.");
         }
       } else {
         // Wait for the token to be refreshed by another request
         return new Promise<T>((resolve, reject) => {
-          addRefreshSubscriber(async (newToken: string) => {
+          addRefreshSubscriber(async () => {
             try {
               const retryResponse = await executeRequest(getAuthHeaders());
               const isJson = retryResponse.headers.get("content-type")?.includes("application/json");
@@ -119,7 +120,7 @@ export async function apiClient<T = any>({
       const errorMsg = data?.detail || data?.message || data?.error || `HTTP error! status: ${response.status}`;
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("atlas-notification", {
+          new CustomEvent(EVENTS.NOTIFICATION, {
             detail: { message: errorMsg, type: "error" },
           })
         );
@@ -140,10 +141,10 @@ export async function apiClient<T = any>({
  */
 export function navigateAuthenticated(path: string) {
   if (typeof window === "undefined") return;
-  const token = localStorage.getItem("atlas_access_token");
+  const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   
   const isAbsoluteUrl = path.startsWith("http://") || path.startsWith("https://");
-  const fullUrl = isAbsoluteUrl ? path : `${BASE_URL}${path}`;
+  const fullUrl = isAbsoluteUrl ? path : `${CONSTANTS.BASE_URL}${path}`;
   
   const urlObj = new URL(fullUrl);
   if (token) {

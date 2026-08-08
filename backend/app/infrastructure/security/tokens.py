@@ -21,9 +21,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 
 from app.config import get_settings
-
-_ACCESS_TOKEN_EXPIRE_MINUTES = 15
-_ALGORITHM = "HS256"
+from app.constants import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM
 
 
 def _get_secret_key() -> str:
@@ -45,7 +43,7 @@ def create_access_token(user_id: str, session_id: str) -> str:
         Signed JWT string valid for ACCESS_TOKEN_EXPIRE_MINUTES.
     """
     now = datetime.now(timezone.utc)
-    expire = now + timedelta(minutes=_ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": user_id,
         "sid": session_id,
@@ -53,7 +51,7 @@ def create_access_token(user_id: str, session_id: str) -> str:
         "iat": now,
         "exp": expire,
     }
-    return jwt.encode(payload, _get_secret_key(), algorithm=_ALGORITHM)
+    return jwt.encode(payload, _get_secret_key(), algorithm=JWT_ALGORITHM)
 
 
 def verify_access_token(token: str) -> dict | None:
@@ -65,7 +63,7 @@ def verify_access_token(token: str) -> dict | None:
         or None if the token is invalid or expired.
     """
     try:
-        payload = jwt.decode(token, _get_secret_key(), algorithms=[_ALGORITHM])
+        payload = jwt.decode(token, _get_secret_key(), algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             return None
         return payload

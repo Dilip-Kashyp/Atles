@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.jwt import create_access_token, verify_token
 from app.auth.oauth_registry import oauth_registry
 from app.config import get_settings
+from app.constants import DEFAULT_API_REDIRECT_URI_TEMPLATE
 from app.database.session import get_db
 from app.domain.identity.services import IdentityService, SessionService
 from app.domain.workspace.services import WorkspaceService
@@ -19,11 +20,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def resolve_redirect_uri(provider: str, redirect_uri: str | None) -> str:
     """Resolve the OAuth callback URL for the provider, using the configured backend callback by default."""
     defaults = {
-        "github": settings.github_redirect_uri if hasattr(settings, "github_redirect_uri") else "http://localhost:8000/api/auth/github/callback",
+        "github": settings.github_redirect_uri if hasattr(settings, "github_redirect_uri") else DEFAULT_API_REDIRECT_URI_TEMPLATE.format(provider="github"),
         "google": settings.google_redirect_uri,
         "slack": settings.slack_redirect_uri,
     }
-    default_redirect_uri = defaults.get(provider.lower(), f"http://localhost:8000/api/auth/{provider}/callback")
+    default_redirect_uri = defaults.get(provider.lower(), DEFAULT_API_REDIRECT_URI_TEMPLATE.format(provider=provider.lower()))
 
     if not redirect_uri:
         return default_redirect_uri

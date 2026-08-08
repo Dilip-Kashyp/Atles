@@ -21,15 +21,17 @@ from app.memory.models import (
     SessionContext,
     SlackThreadMeta,
 )
+from app.constants import (
+    MEMORY_LIMIT_ENTITIES,
+    MEMORY_LIMIT_PREFERENCES,
+    MEMORY_LIMIT_SUMMARIES,
+    MEMORY_LIMIT_TOOL_RESULTS,
+    MEMORY_MIN_MEANINGFUL_LEN,
+)
 from app.memory.prompt_context import PromptContextBuilder
 from app.memory.repository import MemoryRepository
 
 log = logging.getLogger(__name__)
-
-_LIMIT_PREFERENCES  = 2
-_LIMIT_TOOL_RESULTS = 1
-_LIMIT_SUMMARIES    = 2
-_LIMIT_ENTITIES     = 10
 
 _TRIVIAL_RE = re.compile(
     r"^(hi+|hello+|hey+|sup|what'?s up|howdy|yo|"
@@ -58,7 +60,6 @@ _SLACK_RE = re.compile(
     re.IGNORECASE,
 )
 
-_MIN_MEANINGFUL_LEN = 8
 
 SlackReadFn = Callable[[str, str], Coroutine[Any, Any, str]]
 
@@ -66,7 +67,7 @@ SlackReadFn = Callable[[str, str], Coroutine[Any, Any, str]]
 def _classify_intent(user_message: str) -> IntentClass:
     stripped = user_message.strip()
 
-    if len(stripped) < _MIN_MEANINGFUL_LEN or _TRIVIAL_RE.match(stripped):
+    if len(user_message.strip()) < MEMORY_MIN_MEANINGFUL_LEN or _TRIVIAL_RE.match(stripped):
         return IntentClass.TRIVIAL
 
     if _GITHUB_RE.search(stripped):
@@ -85,7 +86,7 @@ def _is_worth_remembering(user_message: str, assistant_response: str) -> bool:
     user   = user_message.strip()
     bot    = assistant_response.strip()
 
-    if len(user) < _MIN_MEANINGFUL_LEN and len(bot) < 50:
+    if len(user) < MEMORY_MIN_MEANINGFUL_LEN and len(bot) < 50:
         return False
 
     if _TRIVIAL_RE.match(user):
@@ -132,13 +133,13 @@ class MemoryManager:
 
         if intent != IntentClass.TRIVIAL:
             preferences  = await self._safe_find_memories(
-                session.session_key, MemoryType.PREFERENCE, _LIMIT_PREFERENCES
+                session.session_key, MemoryType.PREFERENCE, MEMORY_LIMIT_PREFERENCES
             )
             tool_results = await self._safe_find_memories(
-                session.session_key, MemoryType.TOOL_RESULT, _LIMIT_TOOL_RESULTS
+                session.session_key, MemoryType.TOOL_RESULT, MEMORY_LIMIT_TOOL_RESULTS
             )
             summaries    = await self._safe_find_memories(
-                session.session_key, MemoryType.DISCUSSION_SUMMARY, _LIMIT_SUMMARIES
+                session.session_key, MemoryType.DISCUSSION_SUMMARY, MEMORY_LIMIT_SUMMARIES
             )
             seen: set[tuple[str, str]] = set()
             for mem in [*preferences, *tool_results, *summaries]:
@@ -147,7 +148,7 @@ class MemoryManager:
                     if key not in seen:
                         seen.add(key)
                         all_entities.append(e)
-                        if len(all_entities) >= _LIMIT_ENTITIES:
+                        if len(all_entities) >= MEMORY_LIMIT_ENTITIES:
                             break
 
         if ws.active_tool and intent not in (IntentClass.TRIVIAL,):

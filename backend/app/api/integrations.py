@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 
 from app.auth.oauth_registry import oauth_registry
 from app.credentials.manager import encrypt_token
+from app.constants import INTEGRATION_DASHBOARD_SUCCESS_URL
 from app.database.session import get_db
 from app.dependencies import get_current_user
 from app.models.integrations import Credential, Integration, WorkspaceCapability
@@ -48,7 +49,7 @@ async def connect_integration(
     await redis_client.setex(f"integration_state:{state}", 600, f"{workspace_id}:{user.id}")
 
     
-    redirect_uri = f"http://localhost:8000/api/integrations/{provider}/callback"
+    redirect_uri = f"{settings.BASE_URL}/api/integrations/{provider}/callback"
     auth_url = provider_impl.get_authorization_url(state, redirect_uri)
     return RedirectResponse(auth_url)
 
@@ -74,7 +75,7 @@ async def connect_callback(
     except KeyError:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
-    redirect_uri = f"http://localhost:8000/api/integrations/{provider}/callback"
+    redirect_uri = f"{settings.BASE_URL}/api/integrations/{provider}/callback"
     token_payload = await provider_impl.exchange_code(code, redirect_uri)
     access_token = token_payload.get("access_token")
 
@@ -149,5 +150,4 @@ async def connect_callback(
 
     await db.commit()
 
-    
-    return RedirectResponse(f"http://localhost:3000/dashboard?integration_success={provider}")
+    return RedirectResponse(INTEGRATION_DASHBOARD_SUCCESS_URL.format(provider=provider))

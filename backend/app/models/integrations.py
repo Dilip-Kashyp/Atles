@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String, Boolean
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
@@ -23,6 +23,30 @@ class Integration(Base):
     workspace = relationship("Workspace", back_populates="integrations")
     credentials = relationship("Credential", back_populates="integration", cascade="all, delete-orphan")
     capabilities = relationship("WorkspaceCapability", back_populates="integration", cascade="all, delete-orphan")
+    users = relationship("IntegrationUser", back_populates="integration", cascade="all, delete-orphan")
+
+
+class IntegrationUser(Base):
+    __tablename__ = "integration_users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    integration_id = Column(UUID(as_uuid=True), ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False)
+    provider_user_id = Column(String, nullable=False, index=True)
+    username = Column(String, nullable=True)
+    name = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
+    is_bot = Column(String, nullable=True)
+    
+    is_active = Column(Boolean, nullable=False, default=True)
+    can_read = Column(Boolean, nullable=False, default=True)
+    can_write = Column(Boolean, nullable=False, default=False)
+    can_delete = Column(Boolean, nullable=False, default=False)
+    raw_profile = Column(JSONB, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    integration = relationship("Integration", back_populates="users")
 
 
 class Credential(Base):

@@ -3,6 +3,7 @@
 import "./globals.css";
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { EVENTS, ROUTES } from "@/constants";
 import Notification from "@/components/Notification";
 import Sidebar from "@/components/Sidebar";
 
@@ -20,13 +21,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       }
     };
 
-    window.addEventListener("atlas-notification" as any, handleNotification);
+    window.addEventListener(EVENTS.NOTIFICATION as any, handleNotification);
     return () => {
-      window.removeEventListener("atlas-notification" as any, handleNotification);
+      window.removeEventListener(EVENTS.NOTIFICATION as any, handleNotification);
     };
   }, []);
 
-  const isLoginPage = pathname === "/login" || pathname === "/";
+  const isLoginPage = pathname === ROUTES.LOGIN || pathname === ROUTES.HOME;
 
   return (
     <html lang="en">

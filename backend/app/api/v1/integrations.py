@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.constants import INTEGRATION_V1_CALLBACK_URL
 from app.context import CurrentIdentity, CurrentWorkspaceContext
 from app.database.session import get_db
 from app.dependencies import get_current_identity, get_current_workspace_context
@@ -19,8 +20,7 @@ settings = get_settings()
 
 
 def _resolve_redirect_uri(provider: str) -> str:
-    
-    return f"http://localhost:8000/api/v1/workspaces/integrations/{provider}/callback"
+    return INTEGRATION_V1_CALLBACK_URL.format(provider=provider)
 
 
 @router.get("/{workspace_id}/integrations/{provider}/connect")

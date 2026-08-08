@@ -3,11 +3,9 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ROUTES, STORAGE_KEYS } from "@/constants";
 import {
   DashboardIcon,
-  FolderIcon,
-  BotIcon,
-  ShieldIcon,
   LogoutIcon,
   SparklesIcon,
   UsersIcon,
@@ -26,22 +24,20 @@ export function Sidebar() {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = localStorage.getItem("atlas_access_token");
+    const t = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (t) setToken(t);
   }, [pathname]);
 
   const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: <DashboardIcon className="w-5 h-5" /> },
-    { id: "workspaces", label: "Workspaces", path: "/workspaces", icon: <FolderIcon className="w-5 h-5" /> },
-    { id: "integrations", label: "Integrations", path: "/integrations", icon: <SparklesIcon className="w-5 h-5" /> },
-    { id: "service-accounts", label: "Automation", path: "/service-accounts", icon: <BotIcon className="w-5 h-5" /> },
-    { id: "profile", label: "Security", path: "/profile", icon: <ShieldIcon className="w-5 h-5" /> },
+    { id: "dashboard", label: "Dashboard", path: ROUTES.DASHBOARD, icon: <DashboardIcon className="w-5 h-5" /> },
+    { id: "users", label: "User Management", path: ROUTES.USERS, icon: <UsersIcon className="w-5 h-5" /> },
+    { id: "integrations", label: "Integrations", path: ROUTES.INTEGRATIONS, icon: <SparklesIcon className="w-5 h-5" /> },
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("atlas_access_token");
-    document.cookie = "atlas_access_token=; path=/; max-age=0";
-    router.push("/login");
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    document.cookie = `${STORAGE_KEYS.ACCESS_TOKEN}=; path=/; max-age=0`;
+    router.push(ROUTES.LOGIN);
   };
 
   return (
@@ -121,7 +117,7 @@ export function Sidebar() {
 
       <div className="sidebar-capsule">
         {/* LOGO */}
-        <Link href="/dashboard" className="hide-on-mobile">
+        <Link href={ROUTES.DASHBOARD} className="hide-on-mobile">
           <div
             className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center cursor-pointer mx-auto mb-3 transition-transform hover:scale-105 border border-white/10 shadow-lg shadow-blue-500/20"
           >
@@ -156,7 +152,7 @@ export function Sidebar() {
         ) : (
           <button
             className="nav-btn text-blue-400 border-blue-500/20 bg-blue-500/10"
-            onClick={() => router.push("/login")}
+            onClick={() => router.push(ROUTES.LOGIN)}
           >
             <SparklesIcon className="w-5 h-5" />
             <span className="hide-on-mobile text-[9px] font-bold uppercase tracking-wider">Login</span>

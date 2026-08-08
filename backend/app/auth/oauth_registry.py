@@ -4,6 +4,18 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.constants import (
+    GITHUB_ACCESS_TOKEN_URL,
+    GITHUB_AUTHORIZE_URL,
+    GITHUB_USER_EMAILS_URL,
+    GITHUB_USER_INFO_URL,
+    GOOGLE_AUTHORIZE_URL,
+    GOOGLE_TOKEN_URL,
+    GOOGLE_USER_INFO_URL,
+    SLACK_ACCESS_TOKEN_URL,
+    SLACK_AUTHORIZE_URL,
+    SLACK_USER_IDENTITY_URL,
+)
 
 settings = get_settings()
 
@@ -22,7 +34,7 @@ class GitHubOAuthProvider(BaseOAuthProvider):
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
         client_id = settings.github_client_id
         return (
-            f"https://github.com/login/oauth/authorize"
+            f"{GITHUB_AUTHORIZE_URL}"
             f"?client_id={client_id}"
             f"&state={state}"
             f"&redirect_uri={redirect_uri}"
@@ -33,7 +45,7 @@ class GitHubOAuthProvider(BaseOAuthProvider):
         async with httpx.AsyncClient() as client:
             
             token_resp = await client.post(
-                "https://github.com/login/oauth/access_token",
+                GITHUB_ACCESS_TOKEN_URL,
                 headers={"Accept": "application/json"},
                 data={
                     "client_id": settings.github_client_id,
@@ -50,7 +62,7 @@ class GitHubOAuthProvider(BaseOAuthProvider):
 
             
             user_resp = await client.get(
-                "https://api.github.com/user",
+                GITHUB_USER_INFO_URL,
                 headers={
                     "Authorization": f"Bearer {access_token}",
                     "Accept": "application/json",
@@ -63,7 +75,7 @@ class GitHubOAuthProvider(BaseOAuthProvider):
             email = user_data.get("email")
             if not email:
                 emails_resp = await client.get(
-                    "https://api.github.com/user/emails",
+                    GITHUB_USER_EMAILS_URL,
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
                 if emails_resp.status_code == 200:
@@ -88,7 +100,7 @@ class GoogleOAuthProvider(BaseOAuthProvider):
     def get_authorization_url(self, state: str, redirect_uri: str) -> str:
         client_id = settings.google_client_id
         return (
-            "https://accounts.google.com/o/oauth2/v2/auth"
+            f"{GOOGLE_AUTHORIZE_URL}"
             f"?client_id={client_id}"
             f"&state={state}"
             f"&redirect_uri={redirect_uri}"
@@ -101,7 +113,7 @@ class GoogleOAuthProvider(BaseOAuthProvider):
     async def exchange_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(
-                "https://oauth2.googleapis.com/token",
+                GOOGLE_TOKEN_URL,
                 data={
                     "client_id": settings.google_client_id,
                     "client_secret": settings.google_client_secret,
@@ -117,7 +129,7 @@ class GoogleOAuthProvider(BaseOAuthProvider):
                 raise ValueError("Google OAuth error: no access token returned")
 
             user_resp = await client.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
+                GOOGLE_USER_INFO_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             user_resp.raise_for_status()
@@ -140,7 +152,7 @@ class SlackOAuthProvider(BaseOAuthProvider):
         client_id = settings.slack_client_id
         
         return (
-            f"https://slack.com/oauth/v2/authorize"
+            f"{SLACK_AUTHORIZE_URL}"
             f"?client_id={client_id}"
             f"&state={state}"
             f"&redirect_uri={redirect_uri}"
@@ -151,7 +163,7 @@ class SlackOAuthProvider(BaseOAuthProvider):
     async def exchange_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(
-                "https://slack.com/api/oauth.v2.access",
+                SLACK_ACCESS_TOKEN_URL,
                 data={
                     "client_id": settings.slack_client_id,
                     "client_secret": settings.slack_client_secret,
@@ -172,7 +184,7 @@ class SlackOAuthProvider(BaseOAuthProvider):
             user_info = {}
             if user_token:
                 identity_resp = await client.get(
-                    "https://slack.com/api/users.identity",
+                    SLACK_USER_IDENTITY_URL,
                     headers={"Authorization": f"Bearer {user_token}"},
                 )
                 identity_data = identity_resp.json()
